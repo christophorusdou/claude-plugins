@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "claude-plugins",
+  "description": "Custom Claude Code plugins",
+  "owner": {
+    "name": "Chris"
+  },
+  "plugins": [
+    {
+      "name": "agent-teams",
+      "description": "Automated agent team assembly and coordination for feature development, code review, research, debugging, maintenance, and architecture tasks",
+      "version": "1.0.0",
+      "author": {
+        "name": "Chris"
+      },
+      "source": "./plugins/agent-teams",
+      "category": "development"
+    }
+  ]
+}
