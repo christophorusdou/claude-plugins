@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# SessionStart hook for memory plugin
+# Injects top project + global memories into context
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+SERVER_ENTRY="${PLUGIN_ROOT}/server/dist/index.js"
+DB_PATH="${HOME}/.claude-memory/memory.db"
+
+# Skip if no database yet (first run)
+if [ ! -f "$DB_PATH" ]; then
+  cat <<'EOF'
+{
+  "additional_context": "Memory plugin active. No memories stored yet. Use /memory store or memory_store to save your first memory.",
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "Memory plugin active. No memories stored yet. Use /memory store or memory_store to save your first memory."
+  }
+}
+EOF
+  exit 0
+fi
+
+# Query top memories directly via SQLite (faster than starting the MCP server)
+# Detect current project from PWD
+PROJECT_NAME=""
+if [ -n "${PWD:-}" ]; then
+  # Extract project name from path (last meaningful directory component)
+  PROJECT_NAME=$(echo "$PWD" | grep -oP '(?<=/projects/)[^/]+' 2>/dev/null || echo "")
+fi
+
+# Build query: top 5 project memories + top 3 global memories by effective rank
+QUERY="
+SELECT content, category, project, score FROM (
+  SELECT content, category, project, score,
+    score + ln(use_count + 1) - 0.01 * (julianday('now') - julianday(COALESCE(last_used_at, created_at))) as eff_rank
+  FROM memories
+  WHERE project = '${PROJECT_NAME}'
+  ORDER BY eff_rank DESC
+  LIMIT 5
+)
+UNION ALL
+SELECT content, category, project, score FROM (
+  SELECT content, category, project, score,
+    score + ln(use_count + 1) - 0.01 * (julianday('now') - julianday(COALESCE(last_used_at, created_at))) as eff_rank
+  FROM memories
+  WHERE project IS NULL
+  ORDER BY eff_rank DESC
+  LIMIT 3
+)
+"
+
+MEMORIES=$(sqlite3 "$DB_PATH" "$QUERY" 2>/dev/null || echo "")
+
+if [ -z "$MEMORIES" ]; then
+  cat <<'EOF'
+{
+  "additional_context": "Memory plugin active. Use memory_recall to search memories or /memory for management.",
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "Memory plugin active. Use memory_recall to search memories or /memory for management."
+  }
+}
+EOF
+  exit 0
+fi
+
+# Escape for JSON
+escape_for_json() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+FORMATTED=""
+while IFS='|' read -r content category project score; do
+  scope="${project:-global}"
+  FORMATTED="${FORMATTED}- [${category}|${scope}|score:${score}] ${content}\\n"
+done <<< "$MEMORIES"
+
+CONTEXT="Relevant memories from your memory system:\\n${FORMATTED}\\nUse memory_recall for deeper searches. Use memory_upvote/memory_downvote to rate memories."
+ESCAPED=$(escape_for_json "$CONTEXT")
+
+cat <<EOF
+{
+  "additional_context": "${ESCAPED}",
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "${ESCAPED}"
+  }
+}
+EOF
+
+exit 0

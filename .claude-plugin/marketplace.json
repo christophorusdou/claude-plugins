@@ -15,6 +15,16 @@
       },
       "source": "./plugins/agent-teams",
       "category": "development"
+    },
+    {
+      "name": "memory",
+      "description": "Centralized cross-project memory system with semantic search, voting, and git sync",
+      "version": "1.0.0",
+      "author": {
+        "name": "Chris"
+      },
+      "source": "./plugins/memory",
+      "category": "knowledge"
     }
   ]
 }

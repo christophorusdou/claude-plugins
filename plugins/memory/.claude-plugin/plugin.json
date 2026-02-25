@@ -1,0 +1,10 @@
+{
+  "name": "memory",
+  "description": "Centralized cross-project memory system with semantic search, voting, and git sync",
+  "version": "1.0.0",
+  "author": {
+    "name": "Chris"
+  },
+  "license": "MIT",
+  "keywords": ["memory", "knowledge", "search", "cross-project", "sync"]
+}
