@@ -15,6 +15,7 @@ export declare function hybridSearch(query: string, queryEmbedding: number[] | F
     similarity?: number;
 }): Promise<SearchResult[]>;
 export declare function vectorSearch(queryEmbedding: number[] | Float32Array, opts?: {
+    project?: string | null;
     limit?: number;
     similarity?: number;
 }): Promise<SearchResult[]>;

@@ -54,6 +54,7 @@ export interface StoreResult {
   status: "created" | "duplicate" | "near-duplicate";
   existing_id?: string;
   similarity?: number;
+  project?: string | null;
 }
 
 export interface MemoryStats {

@@ -4,6 +4,7 @@ import { getDb } from "../db.js";
 import { embed } from "../embeddings.js";
 import { findSimilar } from "../retrieval.js";
 import { indexMemory, saveSearchIndex } from "../search-index.js";
+import { getDetectedProject } from "../project-detect.js";
 const CATEGORY_KEYWORDS = {
     pattern: ["pattern", "convention", "always", "standard", "approach", "architecture"],
     gotcha: ["gotcha", "watch out", "careful", "trap", "pitfall", "caveat", "workaround", "bug"],
@@ -31,10 +32,13 @@ function hashContent(content) {
 export async function storeMemory(opts) {
     const db = getDb();
     const contentHash = hashContent(opts.content);
-    // Layer 1: Exact duplicate check via content hash
+    // Resolve project: auto-detect when omitted (undefined), explicit otherwise
+    const project = opts.project === undefined ? getDetectedProject() : opts.project ?? null;
+    const projectScope = project ?? "";
+    // Layer 1: Scope-aware exact duplicate check
     const existing = db
-        .prepare("SELECT id FROM memories WHERE content_hash = ?")
-        .get(contentHash);
+        .prepare("SELECT id FROM memories WHERE content_hash = ? AND COALESCE(project, '') = ?")
+        .get(contentHash, projectScope);
     if (existing) {
         return {
             id: existing.id,
@@ -44,8 +48,8 @@ export async function storeMemory(opts) {
     }
     // Generate embedding
     const embedding = await embed(opts.content);
-    // Layer 2: Semantic near-duplicate check via Orama
-    const similar = await findSimilar(embedding, 0.85, 1);
+    // Layer 2: Scope-aware semantic near-duplicate check
+    const similar = await findSimilar(embedding, 0.85, 1, project);
     if (similar.length > 0) {
         return {
             id: similar[0].memory_id,
@@ -60,7 +64,6 @@ export async function storeMemory(opts) {
     const category = opts.category ?? autoDetectCategory(opts.content);
     const source = opts.source ?? "manual";
     const confidence = opts.confidence ?? (source === "auto-captured" ? 0.7 : 1.0);
-    const project = opts.project ?? null;
     db.prepare(`INSERT INTO memories (id, content, category, project, tags, triggers, source, source_detail, confidence, score, use_count, created_at, updated_at, content_hash)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)`).run(id, opts.content, category, project, JSON.stringify(opts.tags ?? []), JSON.stringify(opts.triggers ?? []), source, opts.source_detail ?? null, confidence, now, now, contentHash);
     // Index in Orama
@@ -68,6 +71,6 @@ export async function storeMemory(opts) {
     await saveSearchIndex();
     // Log event
     db.prepare("INSERT INTO memory_events(memory_id, event_type, created_at) VALUES (?, 'created', ?)").run(id, now);
-    return { id, status: "created" };
+    return { id, status: "created", project };
 }
 //# sourceMappingURL=store.js.map

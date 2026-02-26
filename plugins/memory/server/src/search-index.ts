@@ -99,8 +99,10 @@ export async function hybridSearch(
   const { limit = 20, similarity = 0.5 } = opts;
 
   const where: Record<string, any> = {};
-  if (opts.project !== undefined && opts.project !== null) {
-    where.project = { eq: opts.project };
+  if (opts.project !== undefined) {
+    // null means "global only" (empty string in Orama)
+    // string means "this specific project"
+    where.project = { eq: opts.project === null ? "" : opts.project };
   }
   if (opts.category) {
     where.category = { eq: opts.category };
@@ -127,12 +129,18 @@ export async function hybridSearch(
 export async function vectorSearch(
   queryEmbedding: number[] | Float32Array,
   opts: {
+    project?: string | null;
     limit?: number;
     similarity?: number;
   } = {}
 ): Promise<SearchResult[]> {
   const index = await getSearchIndex();
   const { limit = 5, similarity = 0.5 } = opts;
+
+  const where: Record<string, any> = {};
+  if (opts.project !== undefined) {
+    where.project = { eq: opts.project === null ? "" : opts.project };
+  }
 
   const results = await search(index, {
     mode: "vector",
@@ -142,6 +150,7 @@ export async function vectorSearch(
     },
     similarity,
     limit,
+    ...(Object.keys(where).length > 0 ? { where } : {}),
   });
 
   return results.hits.map((hit) => ({

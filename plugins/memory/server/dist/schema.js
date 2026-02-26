@@ -1,4 +1,4 @@
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 const MIGRATIONS = {
     1: [
         `CREATE TABLE IF NOT EXISTS memories (
@@ -34,6 +34,13 @@ const MIGRATIONS = {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     )`,
+    ],
+    2: [
+        // Replace global unique content_hash with compound unique (content_hash, project scope)
+        // This allows the same content to exist as both global and project-specific
+        `DROP INDEX IF EXISTS idx_memories_content_hash`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_content_hash_project
+       ON memories(content_hash, COALESCE(project, ''))`,
     ],
 };
 export function initSchema(db) {

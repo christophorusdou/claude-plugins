@@ -49,10 +49,12 @@ export async function importFromJsonl(): Promise<{
     if (!line.trim()) continue;
     const memory: Memory = JSON.parse(line);
 
-    // Skip if already exists (idempotent)
+    // Skip if already exists in same scope (idempotent)
     const existing = db
-      .prepare("SELECT id FROM memories WHERE content_hash = ?")
-      .get(memory.content_hash);
+      .prepare(
+        "SELECT id FROM memories WHERE content_hash = ? AND COALESCE(project, '') = ?"
+      )
+      .get(memory.content_hash, memory.project ?? "");
     if (existing) {
       skipped++;
       continue;

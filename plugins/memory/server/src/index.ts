@@ -13,6 +13,7 @@ import { getCleanupCandidates } from "./tools/cleanup.js";
 import { syncMemories } from "./tools/sync.js";
 import { importMemoryMd } from "./tools/import.js";
 import { closeDb } from "./db.js";
+import { getDetectedProject } from "./project-detect.js";
 
 const server = new McpServer({
   name: "memory",
@@ -22,7 +23,7 @@ const server = new McpServer({
 // --- memory_store ---
 server.tool(
   "memory_store",
-  "Store a new memory. Auto-detects category if not provided. Deduplicates by content hash and vector similarity.",
+  "Store a new memory. Auto-detects category and project scope. When project is omitted, auto-detects from cwd. Pass project: null explicitly for global scope. Deduplicates within same scope.",
   {
     content: z.string().describe("The memory text to store"),
     category: z
@@ -40,7 +41,7 @@ server.tool(
       .string()
       .nullable()
       .optional()
-      .describe("Project name (null for global)"),
+      .describe("Project name. Omit to auto-detect from cwd. Pass null explicitly for global scope."),
     tags: z.array(z.string()).optional().describe("Tags for filtering"),
     triggers: z
       .array(z.string())
@@ -92,9 +93,10 @@ server.tool(
       };
     }
 
+    const scope = result.project ? `project: ${result.project}` : "global";
     return {
       content: [
-        { type: "text" as const, text: `Memory stored. ID: ${result.id}` },
+        { type: "text" as const, text: `Memory stored (${scope}). ID: ${result.id}` },
       ],
     };
   }
@@ -103,14 +105,14 @@ server.tool(
 // --- memory_recall ---
 server.tool(
   "memory_recall",
-  "Search memories using semantic + keyword hybrid search. Returns ranked results.",
+  "Search memories using semantic + keyword hybrid search. When project is omitted, auto-detects from cwd and runs two-pass search (project + global) with scope boosting. Pass null for global-only.",
   {
     query: z.string().describe("Search query (natural language)"),
     project: z
       .string()
       .nullable()
       .optional()
-      .describe("Filter by project (null for global only)"),
+      .describe("Omit to auto-detect (two-pass search). Pass null for global only. Pass string for specific project."),
     category: z
       .enum([
         "pattern",
@@ -156,11 +158,16 @@ server.tool(
       return `${i + 1}. [${m.id}] (${meta})\n   ${m.content}`;
     });
 
+    const detected = getDetectedProject();
+    const scopeInfo = args.project !== undefined
+      ? (args.project === null ? "scope: global" : `scope: ${args.project}`)
+      : (detected ? `auto-detected project: ${detected}` : "scope: global");
+
     return {
       content: [
         {
           type: "text" as const,
-          text: `Found ${results.length} memories:\n\n${formatted.join("\n\n")}`,
+          text: `Found ${results.length} memories (${scopeInfo}):\n\n${formatted.join("\n\n")}`,
         },
       ],
     };

@@ -64,8 +64,10 @@ export async function hybridSearch(query, queryEmbedding, opts = {}) {
     const index = await getSearchIndex();
     const { limit = 20, similarity = 0.5 } = opts;
     const where = {};
-    if (opts.project !== undefined && opts.project !== null) {
-        where.project = { eq: opts.project };
+    if (opts.project !== undefined) {
+        // null means "global only" (empty string in Orama)
+        // string means "this specific project"
+        where.project = { eq: opts.project === null ? "" : opts.project };
     }
     if (opts.category) {
         where.category = { eq: opts.category };
@@ -89,6 +91,10 @@ export async function hybridSearch(query, queryEmbedding, opts = {}) {
 export async function vectorSearch(queryEmbedding, opts = {}) {
     const index = await getSearchIndex();
     const { limit = 5, similarity = 0.5 } = opts;
+    const where = {};
+    if (opts.project !== undefined) {
+        where.project = { eq: opts.project === null ? "" : opts.project };
+    }
     const results = await search(index, {
         mode: "vector",
         vector: {
@@ -97,6 +103,7 @@ export async function vectorSearch(queryEmbedding, opts = {}) {
         },
         similarity,
         limit,
+        ...(Object.keys(where).length > 0 ? { where } : {}),
     });
     return results.hits.map((hit) => ({
         memory_id: hit.document.memory_id,

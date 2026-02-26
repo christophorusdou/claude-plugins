@@ -7,16 +7,22 @@ interface RetrievalOptions {
     min_score?: number;
 }
 /**
- * 3-stage retrieval pipeline:
- * 1. Orama hybrid search (vector + FTS combined)
+ * 3-stage retrieval pipeline with scope-aware two-pass search:
+ * 1. Two-pass Orama hybrid search (project-specific + global)
  * 2. Load full memory records from SQLite
- * 3. Re-rank with effective rank (votes, usage, recency)
+ * 3. Re-rank with effective rank + scope boost, conflict suppression
+ *
+ * Project resolution:
+ *   - undefined → auto-detect project, two-pass search
+ *   - string → filter to that project only
+ *   - null → global only
  */
 export declare function recall(opts: RetrievalOptions): Promise<RecallResult[]>;
 /**
  * Find memories similar to a given embedding, for dedup checks.
+ * When project is provided, limits vector dedup to same scope.
  */
-export declare function findSimilar(embedding: Float32Array, threshold?: number, limit?: number): Promise<Array<{
+export declare function findSimilar(embedding: Float32Array, threshold?: number, limit?: number, project?: string | null): Promise<Array<{
     memory_id: string;
     similarity: number;
 }>>;
