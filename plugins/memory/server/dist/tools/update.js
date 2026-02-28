@@ -34,6 +34,14 @@ export async function updateMemory(opts) {
         sets.push("triggers = ?");
         params.push(JSON.stringify(opts.triggers));
     }
+    if (opts.version_context !== undefined) {
+        sets.push("version_context = ?");
+        params.push(opts.version_context);
+    }
+    if (opts.valid_until !== undefined) {
+        sets.push("valid_until = ?");
+        params.push(opts.valid_until);
+    }
     params.push(opts.id);
     db.prepare(`UPDATE memories SET ${sets.join(", ")} WHERE id = ?`).run(...params);
     // Re-index in Orama if content, category, or project changed

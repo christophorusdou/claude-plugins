@@ -12,6 +12,8 @@ interface UpdateOptions {
   project?: string | null;
   tags?: string[];
   triggers?: string[];
+  version_context?: string | null;
+  valid_until?: string | null;
 }
 
 export async function updateMemory(
@@ -53,6 +55,16 @@ export async function updateMemory(
   if (opts.triggers !== undefined) {
     sets.push("triggers = ?");
     params.push(JSON.stringify(opts.triggers));
+  }
+
+  if (opts.version_context !== undefined) {
+    sets.push("version_context = ?");
+    params.push(opts.version_context);
+  }
+
+  if (opts.valid_until !== undefined) {
+    sets.push("valid_until = ?");
+    params.push(opts.valid_until);
   }
 
   params.push(opts.id);

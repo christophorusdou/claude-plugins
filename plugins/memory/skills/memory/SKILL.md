@@ -57,6 +57,27 @@ When a memory might be relevant to the current task:
 2. If results are helpful, use them and consider calling `memory_upvote`
 3. If results are wrong/outdated, call `memory_downvote`
 
+## Freshness & Staleness
+
+Memories can become outdated as libraries release new versions or models improve.
+
+### On Store
+For version-sensitive memories, include `version_context` (e.g. `"React 18.2"`, `"Node 20"`) and optionally `valid_until` (ISO date) for time-bounded facts. Example:
+- Content: "React 18 doesn't support use() hook" → `version_context: "React 18"`, `valid_until: "2027-01-01"`
+
+### On Recall
+When a recalled memory looks outdated (e.g. a library version has changed, a workaround is no longer needed):
+1. Call `memory_downvote` with a `detail` explaining why (this also marks it expired immediately)
+2. Optionally store a corrected replacement memory
+
+### Periodic Audit
+Run `memory_audit` (or `/mem audit`) periodically to find:
+- Expired memories past their `valid_until` date
+- Memories expiring soon (within 30 days by default)
+- Low-confidence memories that have been repeatedly downvoted
+
+Review candidates and delete, update, or extend their `valid_until` as appropriate.
+
 ## Formatting Memories
 
 When storing, write concise, actionable content:

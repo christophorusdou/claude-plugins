@@ -8,6 +8,8 @@ interface StoreOptions {
     source?: MemorySource;
     source_detail?: string | null;
     confidence?: number;
+    version_context?: string | null;
+    valid_until?: string | null;
 }
 export declare function storeMemory(opts: StoreOptions): Promise<StoreResult>;
 export {};

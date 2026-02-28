@@ -98,8 +98,20 @@ export async function recall(opts) {
         const normalizedRank = 1 / (1 + Math.exp(-effectiveRank / 5));
         // Scope boost: project-specific memories get +0.15 in two-pass mode
         const scopeBoost = usesTwoPass && sr.isProjectResult ? 0.15 : 0;
+        // Freshness multiplier based on valid_until expiry
+        let freshnessMultiplier = 1.0;
+        if (memory.valid_until) {
+            const expiryMs = new Date(memory.valid_until).getTime();
+            const daysLeft = (expiryMs - now) / 86400000;
+            if (daysLeft <= 0) {
+                freshnessMultiplier = 0.3; // expired — 70% penalty
+            }
+            else if (daysLeft <= 7) {
+                freshnessMultiplier = 0.5 + 0.5 * (daysLeft / 7); // linear ramp 0.5→1.0
+            }
+        }
         // Combine: 0.7 * orama_score + 0.15 * effective_rank + 0.15 * scope_boost_component
-        const finalScore = sr.score * 0.7 + normalizedRank * 0.15 + scopeBoost;
+        const finalScore = (sr.score * 0.7 + normalizedRank * 0.15 + scopeBoost) * freshnessMultiplier;
         results.push({
             memory,
             vector_similarity: sr.score,

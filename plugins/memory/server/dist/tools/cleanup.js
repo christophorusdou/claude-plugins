@@ -46,6 +46,21 @@ export function getCleanupCandidates() {
             reason: `Low confidence auto-capture (${row.confidence.toFixed(2)})`,
         });
     }
+    // Stale: expired valid_until
+    const stale = db
+        .prepare(`SELECT * FROM memories
+       WHERE valid_until IS NOT NULL AND valid_until < datetime('now')
+       ORDER BY valid_until ASC
+       LIMIT 20`)
+        .all();
+    for (const row of stale) {
+        if (candidates.some((c) => c.memory.id === row.id))
+            continue;
+        candidates.push({
+            memory: rowToMemory(row),
+            reason: `Expired (valid_until: ${row.valid_until})`,
+        });
+    }
     return candidates;
 }
 //# sourceMappingURL=cleanup.js.map

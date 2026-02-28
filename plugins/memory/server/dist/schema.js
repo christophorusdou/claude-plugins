@@ -1,4 +1,4 @@
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const MIGRATIONS = {
     1: [
         `CREATE TABLE IF NOT EXISTS memories (
@@ -41,6 +41,12 @@ const MIGRATIONS = {
         `DROP INDEX IF EXISTS idx_memories_content_hash`,
         `CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_content_hash_project
        ON memories(content_hash, COALESCE(project, ''))`,
+    ],
+    3: [
+        // Freshness & staleness: version context and expiry date
+        `ALTER TABLE memories ADD COLUMN version_context TEXT`,
+        `ALTER TABLE memories ADD COLUMN valid_until TEXT`,
+        `CREATE INDEX IF NOT EXISTS idx_memories_valid_until ON memories(valid_until)`,
     ],
 };
 export function initSchema(db) {

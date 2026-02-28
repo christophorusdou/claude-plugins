@@ -6,6 +6,8 @@ interface UpdateOptions {
     project?: string | null;
     tags?: string[];
     triggers?: string[];
+    version_context?: string | null;
+    valid_until?: string | null;
 }
 export declare function updateMemory(opts: UpdateOptions): Promise<Memory | null>;
 export {};

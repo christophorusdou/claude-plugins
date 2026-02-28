@@ -45,6 +45,8 @@ interface StoreOptions {
   source?: MemorySource;
   source_detail?: string | null;
   confidence?: number;
+  version_context?: string | null;
+  valid_until?: string | null;
 }
 
 export async function storeMemory(opts: StoreOptions): Promise<StoreResult> {
@@ -94,8 +96,8 @@ export async function storeMemory(opts: StoreOptions): Promise<StoreResult> {
   const confidence = opts.confidence ?? (source === "auto-captured" ? 0.7 : 1.0);
 
   db.prepare(
-    `INSERT INTO memories (id, content, category, project, tags, triggers, source, source_detail, confidence, score, use_count, created_at, updated_at, content_hash)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)`
+    `INSERT INTO memories (id, content, category, project, tags, triggers, source, source_detail, confidence, score, use_count, created_at, updated_at, content_hash, version_context, valid_until)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?)`
   ).run(
     id,
     opts.content,
@@ -108,7 +110,9 @@ export async function storeMemory(opts: StoreOptions): Promise<StoreResult> {
     confidence,
     now,
     now,
-    contentHash
+    contentHash,
+    opts.version_context ?? null,
+    opts.valid_until ?? null
   );
 
   // Index in Orama

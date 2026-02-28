@@ -64,8 +64,8 @@ export async function storeMemory(opts) {
     const category = opts.category ?? autoDetectCategory(opts.content);
     const source = opts.source ?? "manual";
     const confidence = opts.confidence ?? (source === "auto-captured" ? 0.7 : 1.0);
-    db.prepare(`INSERT INTO memories (id, content, category, project, tags, triggers, source, source_detail, confidence, score, use_count, created_at, updated_at, content_hash)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)`).run(id, opts.content, category, project, JSON.stringify(opts.tags ?? []), JSON.stringify(opts.triggers ?? []), source, opts.source_detail ?? null, confidence, now, now, contentHash);
+    db.prepare(`INSERT INTO memories (id, content, category, project, tags, triggers, source, source_detail, confidence, score, use_count, created_at, updated_at, content_hash, version_context, valid_until)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?)`).run(id, opts.content, category, project, JSON.stringify(opts.tags ?? []), JSON.stringify(opts.triggers ?? []), source, opts.source_detail ?? null, confidence, now, now, contentHash, opts.version_context ?? null, opts.valid_until ?? null);
     // Index in Orama
     await indexMemory(id, opts.content, embedding, category, project ?? "");
     await saveSearchIndex();

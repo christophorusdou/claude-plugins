@@ -10,6 +10,7 @@ import { deleteMemory } from "./tools/delete.js";
 import { upvoteMemory, downvoteMemory } from "./tools/vote.js";
 import { getStats } from "./tools/stats.js";
 import { getCleanupCandidates } from "./tools/cleanup.js";
+import { auditMemories } from "./tools/audit.js";
 import { syncMemories } from "./tools/sync.js";
 import { importMemoryMd } from "./tools/import.js";
 import { closeDb } from "./db.js";
@@ -59,6 +60,17 @@ server.tool(
       .max(1)
       .optional()
       .describe("Confidence level (0-1)"),
+    version_context: z
+      .string()
+      .nullable()
+      .optional()
+      .describe("Version context (e.g. 'React 18.2', 'Node 20') for staleness tracking"),
+    valid_until: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}/, "Must be an ISO date (YYYY-MM-DD)")
+      .nullable()
+      .optional()
+      .describe("ISO date when this memory expires (e.g. '2026-06-01'). Expired memories rank lower."),
   },
   async (args) => {
     const result = await storeMemory({
@@ -69,6 +81,8 @@ server.tool(
       triggers: args.triggers,
       source: args.source,
       confidence: args.confidence,
+      version_context: args.version_context,
+      valid_until: args.valid_until,
     });
 
     if (result.status === "duplicate") {
@@ -149,12 +163,15 @@ server.tool(
 
     const formatted = results.map((r, i) => {
       const m = r.memory;
+      const expired = m.valid_until && new Date(m.valid_until).getTime() < Date.now();
       const meta = [
         m.category,
         m.project ? `project:${m.project}` : "global",
         `score:${m.score}`,
         `sim:${r.vector_similarity.toFixed(3)}`,
-      ].join(" | ");
+        expired ? "EXPIRED" : null,
+        m.version_context ? `ctx:${m.version_context}` : null,
+      ].filter(Boolean).join(" | ");
       return `${i + 1}. [${m.id}] (${meta})\n   ${m.content}`;
     });
 
@@ -194,6 +211,17 @@ server.tool(
     project: z.string().nullable().optional(),
     tags: z.array(z.string()).optional(),
     triggers: z.array(z.string()).optional(),
+    version_context: z
+      .string()
+      .nullable()
+      .optional()
+      .describe("Version context for staleness tracking"),
+    valid_until: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}/, "Must be an ISO date (YYYY-MM-DD)")
+      .nullable()
+      .optional()
+      .describe("ISO date when this memory expires"),
   },
   async (args) => {
     const result = await updateMemory(args);
@@ -399,6 +427,66 @@ server.tool(
         {
           type: "text" as const,
           text: `${candidates.length} cleanup candidates:\n\n${formatted.join("\n\n")}\n\nUse memory_delete to remove unwanted entries.`,
+        },
+      ],
+    };
+  }
+);
+
+// --- memory_audit ---
+server.tool(
+  "memory_audit",
+  "Audit memories for staleness: find expired, near-expiry, and low-confidence memories that may need review or deletion.",
+  {
+    include_expired: z
+      .boolean()
+      .optional()
+      .describe("Include already-expired memories (default true)"),
+    days_warning: z
+      .number()
+      .optional()
+      .describe("Days ahead to warn about upcoming expiry (default 30)"),
+    limit: z
+      .number()
+      .optional()
+      .describe("Max results (default 50)"),
+  },
+  async (args) => {
+    const candidates = auditMemories({
+      include_expired: args.include_expired,
+      days_warning: args.days_warning,
+      limit: args.limit,
+    });
+
+    if (candidates.length === 0) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: "No stale or expiring memories found. All memories are fresh!",
+          },
+        ],
+      };
+    }
+
+    const formatted = candidates.map((c) => {
+      const m = c.memory;
+      const meta = [
+        m.category,
+        m.project ? `project:${m.project}` : "global",
+        m.version_context ? `ctx:${m.version_context}` : null,
+        m.valid_until ? `expires:${m.valid_until}` : null,
+      ]
+        .filter(Boolean)
+        .join(" | ");
+      return `[${m.id}] ${c.reason}\n  (${meta})\n  ${m.content.slice(0, 120)}`;
+    });
+
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: `${candidates.length} memories need review:\n\n${formatted.join("\n\n")}\n\nUse memory_update to fix valid_until, memory_downvote to mark stale, or memory_delete to remove.`,
         },
       ],
     };
