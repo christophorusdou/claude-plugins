@@ -129,6 +129,10 @@ export async function recall(opts: RetrievalOptions): Promise<RecallResult[]> {
     // Scope boost: project-specific memories get +0.15 in two-pass mode
     const scopeBoost = usesTwoPass && sr.isProjectResult ? 0.15 : 0;
 
+    // Trigger boost: +0.20 if any trigger pattern matches the query
+    const triggerMatched = matchTriggers(memory.triggers, query);
+    const triggerBoost = triggerMatched ? 0.20 : 0;
+
     // Freshness multiplier based on valid_until expiry
     let freshnessMultiplier = 1.0;
     if (memory.valid_until) {
@@ -141,15 +145,16 @@ export async function recall(opts: RetrievalOptions): Promise<RecallResult[]> {
       }
     }
 
-    // Combine: 0.7 * orama_score + 0.15 * effective_rank + 0.15 * scope_boost_component
+    // Combine: 0.7 * orama + 0.15 * effective_rank + scope + trigger
     const finalScore =
-      (sr.score * 0.7 + normalizedRank * 0.15 + scopeBoost) * freshnessMultiplier;
+      (sr.score * 0.7 + normalizedRank * 0.15 + scopeBoost + triggerBoost) * freshnessMultiplier;
 
     results.push({
       memory,
       vector_similarity: sr.score,
       fts_score: 0, // Orama combines these internally
       final_score: finalScore,
+      trigger_matched: triggerMatched,
     });
   }
 
@@ -180,6 +185,34 @@ export async function recall(opts: RetrievalOptions): Promise<RecallResult[]> {
   updateBatch();
 
   return results.slice(0, limit);
+}
+
+/**
+ * Check if any trigger pattern matches the query string.
+ * Plain strings: case-insensitive substring match.
+ * Regex (e.g. /pattern/flags): RegExp test (default flag `i`).
+ * Invalid regex falls back to substring match.
+ */
+export function matchTriggers(triggers: string[], query: string): boolean {
+  if (!triggers || triggers.length === 0) return false;
+  const lowerQuery = query.toLowerCase();
+
+  for (const trigger of triggers) {
+    const regexMatch = trigger.match(/^\/(.+)\/([gimsuy]*)$/);
+    if (regexMatch) {
+      try {
+        const flags = regexMatch[2] || "i";
+        const re = new RegExp(regexMatch[1], flags);
+        if (re.test(query)) return true;
+      } catch {
+        // Invalid regex — fall back to substring
+        if (lowerQuery.includes(trigger.toLowerCase())) return true;
+      }
+    } else {
+      if (lowerQuery.includes(trigger.toLowerCase())) return true;
+    }
+  }
+  return false;
 }
 
 /**

@@ -49,6 +49,7 @@ export interface RecallResult {
   vector_similarity: number;
   fts_score: number;
   final_score: number;
+  trigger_matched: boolean;
 }
 
 export interface StoreResult {
@@ -70,6 +71,12 @@ export interface MemoryStats {
     positive: number;
     highly_rated: number;
   };
+}
+
+export interface ConsolidationGroup {
+  suggested_winner: Memory;
+  members: Memory[];
+  avg_similarity: number;
 }
 
 export interface CleanupCandidate {

@@ -13,6 +13,7 @@ import { getCleanupCandidates } from "./tools/cleanup.js";
 import { auditMemories } from "./tools/audit.js";
 import { syncMemories } from "./tools/sync.js";
 import { importMemoryMd } from "./tools/import.js";
+import { findConsolidationGroups } from "./tools/consolidate.js";
 import { closeDb } from "./db.js";
 import { getDetectedProject } from "./project-detect.js";
 
@@ -48,7 +49,7 @@ server.tool(
       .array(z.string())
       .optional()
       .describe(
-        "Keyword/regex patterns for signal-based activation (stored for v2)"
+        "Keyword/regex patterns that boost this memory during recall when matched against the query. Plain strings match case-insensitively. Use /pattern/flags for regex (default flag: i)."
       ),
     source: z
       .enum(["manual", "auto-captured"])
@@ -169,6 +170,7 @@ server.tool(
         m.project ? `project:${m.project}` : "global",
         `score:${m.score}`,
         `sim:${r.vector_similarity.toFixed(3)}`,
+        r.trigger_matched ? "TRIGGER" : null,
         expired ? "EXPIRED" : null,
         m.version_context ? `ctx:${m.version_context}` : null,
       ].filter(Boolean).join(" | ");
@@ -487,6 +489,70 @@ server.tool(
         {
           type: "text" as const,
           text: `${candidates.length} memories need review:\n\n${formatted.join("\n\n")}\n\nUse memory_update to fix valid_until, memory_downvote to mark stale, or memory_delete to remove.`,
+        },
+      ],
+    };
+  }
+);
+
+// --- memory_consolidate ---
+server.tool(
+  "memory_consolidate",
+  "Find groups of similar memories that could be merged. Returns suggested winner + candidates for deletion. Use memory_update on the winner with consolidated content, then memory_delete the rest.",
+  {
+    project: z
+      .string()
+      .nullable()
+      .optional()
+      .describe("Filter by project. Omit for all, null for global only."),
+    threshold: z
+      .number()
+      .min(0.5)
+      .max(0.84)
+      .optional()
+      .describe("Similarity threshold (default 0.70, max 0.84 — below dedup threshold)"),
+    limit: z
+      .number()
+      .optional()
+      .describe("Max groups to return (default 10)"),
+  },
+  async (args) => {
+    const groups = await findConsolidationGroups({
+      project: args.project,
+      threshold: args.threshold,
+      limit: args.limit,
+    });
+
+    if (groups.length === 0) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: "No consolidation candidates found. Memories are well-separated!",
+          },
+        ],
+      };
+    }
+
+    const formatted = groups.map((g, gi) => {
+      const lines = g.members.map((m, mi) => {
+        const label = mi === 0 ? ">>> KEEP" : "    DEL ";
+        const meta = [
+          m.category,
+          m.project ? `project:${m.project}` : "global",
+          `score:${m.score}`,
+          `uses:${m.use_count}`,
+        ].join(" | ");
+        return `  ${label} [${m.id}] (${meta})\n           ${m.content.slice(0, 120)}`;
+      });
+      return `Group ${gi + 1} (${g.members.length} memories, avg similarity: ${g.avg_similarity.toFixed(3)}):\n${lines.join("\n")}`;
+    });
+
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: `${groups.length} consolidation groups found:\n\n${formatted.join("\n\n")}\n\nTo merge: memory_update winner with consolidated content, memory_delete the rest.`,
         },
       ],
     };

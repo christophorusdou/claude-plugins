@@ -50,6 +50,23 @@ Do NOT store:
 - Session-specific context (current file being edited, etc.)
 - Things that duplicate existing CLAUDE.md instructions
 
+## Triggers
+
+Triggers are keyword or regex patterns attached to a memory that boost its ranking when matched against a recall query. They give explicit control over when a memory surfaces.
+
+### On Store
+Add `triggers` when a memory should activate for specific terms that may not appear in the content itself:
+```
+memory_store content: "Use bind mounts with chmod 777 on macOS" triggers: ["docker", "bind mount", "/\.dockerfile$/i"]
+```
+
+### Trigger Syntax
+- **Plain string**: case-insensitive substring match against the query (e.g. `"docker"` matches "How do I set up Docker?")
+- **Regex**: `/pattern/flags` format. Default flag is `i` (case-insensitive). Example: `/\.tsx$/` matches queries mentioning `.tsx` files. Invalid regex falls back to substring match.
+
+### How It Works
+When `memory_recall` runs, any memory whose triggers match the query gets a **+0.20 score boost** during re-ranking. Triggered memories show a `TRIGGER` tag in results. This is additive with scope boost (+0.15 for project matches), so a project memory with a trigger match can get up to +0.35 boost.
+
 ## Recall Strategy
 
 When a memory might be relevant to the current task:
@@ -77,6 +94,28 @@ Run `memory_audit` (or `/mem audit`) periodically to find:
 - Low-confidence memories that have been repeatedly downvoted
 
 Review candidates and delete, update, or extend their `valid_until` as appropriate.
+
+## Consolidation
+
+Over time, related memories accumulate — different phrasings of the same insight, fragments that overlap. The dedup layer catches near-duplicates at store time (0.85 threshold), but doesn't help with existing memories that are related but distinct.
+
+### Finding Groups
+Run `memory_consolidate` (or `/mem consolidate`) to find groups of similar memories. The tool uses a lower similarity threshold (default 0.70) and groups connected memories via BFS.
+
+Each group shows:
+- **KEEP**: The suggested winner (highest score, most used, oldest)
+- **DEL**: Candidates for deletion after merging their content into the winner
+
+### Merging Workflow
+1. Run `memory_consolidate` to find groups
+2. Review each group — decide what content to keep
+3. `memory_update` the winner with consolidated content
+4. `memory_delete` the rest
+
+Options:
+- `threshold`: Similarity threshold (0.50–0.84, default 0.70). Lower finds more groups.
+- `project`: Filter to a specific project, or `null` for global only.
+- `limit`: Max groups to return (default 10).
 
 ## Formatting Memories
 

@@ -13,6 +13,7 @@ Memory management command. Usage:
 - `/mem downvote <id>` — Downvote an unhelpful memory
 - `/mem stats` — Show memory statistics
 - `/mem cleanup` — Find low-value memories to prune
+- `/mem consolidate [--threshold=0.70] [--project=X]` — Find groups of similar memories to merge
 - `/mem audit [--days=N]` — Find expired, near-expiry, and low-confidence memories
 - `/mem sync [push|pull]` — Sync via git (default: push)
 - `/mem import <path>` — Import from a MEMORY.md file
@@ -30,7 +31,8 @@ When the user invokes `/mem`, parse their intent and call the appropriate MCP to
 7. **stats**: Call `memory_stats`.
 8. **cleanup**: Call `memory_cleanup`, then present candidates and ask which to delete.
 9. **audit**: Call `memory_audit`. If `--days=N` specified, pass `days_warning: N`. Present candidates and suggest actions (delete, update, extend).
-10. **sync**: Call `memory_sync` with the operation.
-11. **import**: Call `memory_import` with the file path.
+10. **consolidate**: Call `memory_consolidate`. If `--threshold=N` specified, pass `threshold: N`. If `--project=X` specified, pass `project: X`. Present groups and guide the user through the merge workflow (update winner, delete rest).
+11. **sync**: Call `memory_sync` with the operation.
+12. **import**: Call `memory_import` with the file path.
 
 If no subcommand is given, show this help.

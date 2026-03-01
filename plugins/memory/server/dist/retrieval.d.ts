@@ -19,6 +19,13 @@ interface RetrievalOptions {
  */
 export declare function recall(opts: RetrievalOptions): Promise<RecallResult[]>;
 /**
+ * Check if any trigger pattern matches the query string.
+ * Plain strings: case-insensitive substring match.
+ * Regex (e.g. /pattern/flags): RegExp test (default flag `i`).
+ * Invalid regex falls back to substring match.
+ */
+export declare function matchTriggers(triggers: string[], query: string): boolean;
+/**
  * Find memories similar to a given embedding, for dedup checks.
  * When project is provided, limits vector dedup to same scope.
  */
