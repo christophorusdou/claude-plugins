@@ -144,6 +144,39 @@ export async function recall(opts) {
     updateBatch();
     return results.slice(0, limit);
 }
+/** Patterns that indicate ReDoS-vulnerable regex (nested quantifiers, overlapping alternation) */
+const REDOS_PATTERN = /(\+|\*|\{)\s*\)[\+\*\?]|\(\?[^)]*\)\{|\(\?[^)]*\)\+|\(\?[^)]*\)\*|(\+|\*)\s*\1/;
+/**
+ * Validate a single trigger pattern for safety.
+ * Returns null if valid, or an error string if invalid.
+ */
+export function validateTrigger(trigger) {
+    const regexMatch = trigger.match(/^\/(.+)\/([gimsuy]*)$/);
+    if (!regexMatch)
+        return null; // plain strings are always safe
+    try {
+        new RegExp(regexMatch[1], regexMatch[2] || "i");
+    }
+    catch {
+        return `Invalid regex: ${trigger}`;
+    }
+    if (REDOS_PATTERN.test(regexMatch[1])) {
+        return `Potentially unsafe regex (nested quantifiers): ${trigger}`;
+    }
+    return null;
+}
+/**
+ * Validate all triggers, returning errors for any unsafe patterns.
+ */
+export function validateTriggers(triggers) {
+    const errors = [];
+    for (const trigger of triggers) {
+        const err = validateTrigger(trigger);
+        if (err)
+            errors.push(err);
+    }
+    return errors;
+}
 /**
  * Check if any trigger pattern matches the query string.
  * Plain strings: case-insensitive substring match.
@@ -159,7 +192,11 @@ export function matchTriggers(triggers, query) {
         if (regexMatch) {
             try {
                 const flags = regexMatch[2] || "i";
-                const re = new RegExp(regexMatch[1], flags);
+                const pattern = regexMatch[1];
+                // Skip patterns flagged as ReDoS-vulnerable
+                if (REDOS_PATTERN.test(pattern))
+                    continue;
+                const re = new RegExp(pattern, flags);
                 if (re.test(query))
                     return true;
             }

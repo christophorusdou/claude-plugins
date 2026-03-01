@@ -19,6 +19,15 @@ interface RetrievalOptions {
  */
 export declare function recall(opts: RetrievalOptions): Promise<RecallResult[]>;
 /**
+ * Validate a single trigger pattern for safety.
+ * Returns null if valid, or an error string if invalid.
+ */
+export declare function validateTrigger(trigger: string): string | null;
+/**
+ * Validate all triggers, returning errors for any unsafe patterns.
+ */
+export declare function validateTriggers(triggers: string[]): string[];
+/**
  * Check if any trigger pattern matches the query string.
  * Plain strings: case-insensitive substring match.
  * Regex (e.g. /pattern/flags): RegExp test (default flag `i`).

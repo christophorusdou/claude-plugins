@@ -63,6 +63,7 @@ memory_store content: "Use bind mounts with chmod 777 on macOS" triggers: ["dock
 ### Trigger Syntax
 - **Plain string**: case-insensitive substring match against the query (e.g. `"docker"` matches "How do I set up Docker?")
 - **Regex**: `/pattern/flags` format. Default flag is `i` (case-insensitive). Example: `/\.tsx$/` matches queries mentioning `.tsx` files. Invalid regex falls back to substring match.
+- **Safety**: Regex patterns with nested quantifiers (ReDoS-vulnerable) are rejected at store time and skipped at recall time.
 
 ### How It Works
 When `memory_recall` runs, any memory whose triggers match the query gets a **+0.20 score boost** during re-ranking. Triggered memories show a `TRIGGER` tag in results. This is additive with scope boost (+0.15 for project matches), so a project memory with a trigger match can get up to +0.35 boost.
@@ -105,6 +106,8 @@ Run `memory_consolidate` (or `/mem consolidate`) to find groups of similar memor
 Each group shows:
 - **KEEP**: The suggested winner (highest score, most used, oldest)
 - **DEL**: Candidates for deletion after merging their content into the winner
+
+When `project` is omitted, consolidation searches across all projects — a global memory and a project-scoped memory about the same thing will be grouped together.
 
 ### Merging Workflow
 1. Run `memory_consolidate` to find groups

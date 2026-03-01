@@ -14,6 +14,7 @@ import { auditMemories } from "./tools/audit.js";
 import { syncMemories } from "./tools/sync.js";
 import { importMemoryMd } from "./tools/import.js";
 import { findConsolidationGroups } from "./tools/consolidate.js";
+import { validateTriggers } from "./retrieval.js";
 import { closeDb } from "./db.js";
 import { getDetectedProject } from "./project-detect.js";
 const server = new McpServer({
@@ -66,6 +67,20 @@ server.tool("memory_store", "Store a new memory. Auto-detects category and proje
         .optional()
         .describe("ISO date when this memory expires (e.g. '2026-06-01'). Expired memories rank lower."),
 }, async (args) => {
+    // Validate triggers before storing
+    if (args.triggers && args.triggers.length > 0) {
+        const triggerErrors = validateTriggers(args.triggers);
+        if (triggerErrors.length > 0) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Invalid triggers:\n${triggerErrors.join("\n")}\n\nFix the patterns and retry.`,
+                    },
+                ],
+            };
+        }
+    }
     const result = await storeMemory({
         content: args.content,
         category: args.category,

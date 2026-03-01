@@ -34,30 +34,37 @@ export async function findConsolidationGroups(opts) {
     // Build ID set for fast lookup
     const memorySet = new Set(memories.map((m) => m.id));
     const memoryById = new Map(memories.map((m) => [m.id, m]));
-    // Embed all memories and find similar pairs
+    // Embed all memories and find similar pairs (batched for performance)
     const adjacency = new Map();
     const pairSimilarities = new Map(); // "id1|id2" → similarity
-    for (const memory of memories) {
-        const embedding = await embed(memory.content);
-        const similar = await findSimilar(embedding, threshold, 10, memory.project);
-        for (const s of similar) {
-            if (s.memory_id === memory.id)
-                continue; // skip self
-            if (!memorySet.has(s.memory_id))
-                continue; // only include candidates in our set
-            // Add bidirectional edge
-            if (!adjacency.has(memory.id))
-                adjacency.set(memory.id, new Set());
-            if (!adjacency.has(s.memory_id))
-                adjacency.set(s.memory_id, new Set());
-            adjacency.get(memory.id).add(s.memory_id);
-            adjacency.get(s.memory_id).add(memory.id);
-            // Store similarity (use sorted key to avoid duplicates)
-            const pairKey = [memory.id, s.memory_id].sort().join("|");
-            if (!pairSimilarities.has(pairKey)) {
-                pairSimilarities.set(pairKey, s.similarity);
+    const BATCH_SIZE = 20;
+    for (let i = 0; i < memories.length; i += BATCH_SIZE) {
+        const batch = memories.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(async (memory) => {
+            const embedding = await embed(memory.content);
+            // When project is explicitly specified, scope search to that project.
+            // When omitted (all projects), don't scope — allow cross-project grouping.
+            const searchProject = opts.project !== undefined ? memory.project : undefined;
+            const similar = await findSimilar(embedding, threshold, 10, searchProject);
+            for (const s of similar) {
+                if (s.memory_id === memory.id)
+                    continue; // skip self
+                if (!memorySet.has(s.memory_id))
+                    continue; // only include candidates in our set
+                // Add bidirectional edge
+                if (!adjacency.has(memory.id))
+                    adjacency.set(memory.id, new Set());
+                if (!adjacency.has(s.memory_id))
+                    adjacency.set(s.memory_id, new Set());
+                adjacency.get(memory.id).add(s.memory_id);
+                adjacency.get(s.memory_id).add(memory.id);
+                // Store similarity (use sorted key to avoid duplicates)
+                const pairKey = [memory.id, s.memory_id].sort().join("|");
+                if (!pairSimilarities.has(pairKey)) {
+                    pairSimilarities.set(pairKey, s.similarity);
+                }
             }
-        }
+        }));
     }
     // BFS connected components
     const visited = new Set();
