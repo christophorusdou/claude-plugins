@@ -27,8 +27,14 @@ fi
 # Detect current project from PWD
 PROJECT_NAME=""
 if [ -n "${PWD:-}" ]; then
-  # Extract project name from path (last meaningful directory component)
-  PROJECT_NAME=$(echo "$PWD" | grep -oP '(?<=/projects/)[^/]+' 2>/dev/null || echo "")
+  # Extract project name from path (uses sed for macOS/Linux portability)
+  PROJECT_NAME=$(echo "$PWD" | sed -n 's|.*/projects/\([^/]*\).*|\1|p')
+fi
+
+# Sanitize project name: only allow safe characters to prevent SQL injection
+# (sqlite3 CLI doesn't support parameterized queries)
+if [[ -n "$PROJECT_NAME" && ! "$PROJECT_NAME" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+  PROJECT_NAME=""
 fi
 
 # Build query: top 5 project memories + top 3 global memories by effective rank

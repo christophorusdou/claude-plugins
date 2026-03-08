@@ -16,6 +16,9 @@ const SCHEMA = {
 
 let _index: AnyOrama | null = null;
 
+// Write mutex: chains saves so concurrent calls don't interleave file writes
+let _saveChain: Promise<void> = Promise.resolve();
+
 function getIndexPath(): string {
   return join(getDataDir(), INDEX_FILE);
 }
@@ -39,7 +42,20 @@ export async function getSearchIndex(): Promise<AnyOrama> {
 
 export async function saveSearchIndex(): Promise<void> {
   if (!_index) return;
-  await persistToFile(_index, "json", getIndexPath());
+  // Serialize writes: each save waits for the previous one to finish
+  const prev = _saveChain;
+  _saveChain = prev
+    .then(() => persistToFile(_index!, "json", getIndexPath()))
+    .catch(() => {});  // Don't let a failed save break the chain
+  await _saveChain;
+}
+
+/**
+ * Reset the in-memory index, forcing a fresh one on next getSearchIndex() call.
+ * Used by rebuildSearchIndex to clear stale entries.
+ */
+export function resetSearchIndex(): void {
+  _index = null;
 }
 
 export async function indexMemory(
