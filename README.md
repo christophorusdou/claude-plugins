@@ -6,6 +6,7 @@ Personal Claude Code plugin marketplace.
 
 | Plugin | Description |
 |--------|-------------|
+| [memory](plugins/memory/) | Cross-project semantic memory with hybrid search, project scoping, and freshness tracking |
 | [agent-teams](plugins/agent-teams/) | Automated agent team assembly and coordination |
 
 ## Installation

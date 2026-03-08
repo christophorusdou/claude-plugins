@@ -15,7 +15,7 @@ Use the memory MCP tools when:
 
 ## Project Scoping
 
-Memories are automatically scoped to the current project. The server detects the project from its working directory (package.json name, /projects/<name>/ path, or directory basename).
+Memories are automatically scoped to the current project. The server detects the project from its working directory (package.json name or /projects/<name>/ path). Unknown directories default to global scope.
 
 - **Omit `project`** — auto-detects from cwd (most common case)
 - **Pass `project: null`** — explicitly store/recall as global
@@ -122,7 +122,8 @@ Options:
 
 ## Formatting Memories
 
-When storing, write concise, actionable content:
+When storing, write concise, actionable content (max 5,000 characters):
 - Good: "In the homelab project, Docker bind mounts need `chmod 777` on macOS due to filesystem permissions"
 - Bad: "There was an issue with Docker" (too vague)
 - Bad: Long paragraphs (memories should be single statements)
+- If content exceeds 5,000 chars, summarize before storing

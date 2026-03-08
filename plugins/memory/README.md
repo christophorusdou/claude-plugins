@@ -14,16 +14,18 @@ Data stored in `~/.claude-memory/`:
 ## Tools
 
 ### memory_store
-Store a new memory. Auto-detects category and project scope.
+Store a new memory. Auto-detects category and project scope. Content is limited to 5,000 characters.
 
 ```
-content: string     — The memory text
-category?: string   — pattern | gotcha | preference | decision | fact | debug-insight
-project?: string    — Omit to auto-detect, null for global
-tags?: string[]     — Filtering tags
-triggers?: string[] — Keyword patterns for signal-based activation
-source?: string     — manual | auto-captured
-confidence?: number — 0-1
+content: string           — The memory text (max 5000 chars)
+category?: string         — pattern | gotcha | preference | decision | fact | debug-insight
+project?: string          — Omit to auto-detect, null for global
+tags?: string[]           — Filtering tags
+triggers?: string[]       — Keyword/regex patterns for signal-based activation
+source?: string           — manual | auto-captured
+confidence?: number       — 0-1
+version_context?: string  — Version info for staleness tracking (e.g. "React 18.2")
+valid_until?: string      — ISO date when this memory expires (e.g. "2026-06-01")
 ```
 
 ### memory_recall
@@ -55,6 +57,12 @@ Counts by project, category, source, and score distribution.
 ### memory_cleanup
 Suggest low-value memories for deletion.
 
+### memory_audit
+Find expired, near-expiry, and low-confidence memories that need review.
+
+### memory_consolidate
+Find groups of similar memories that could be merged. Returns suggested winner + candidates for deletion.
+
 ### memory_sync
 Git-based sync: push, pull, export (JSONL), rebuild (DB from JSONL).
 
@@ -69,8 +77,9 @@ The memory system automatically detects the current project and scopes memories 
 When `project` is omitted from store/recall, the server detects the project from `process.cwd()`:
 1. `package.json` name field (strips `@scope/` prefix)
 2. Regex match `/projects/<name>/` in path
-3. Directory basename (skips home dir and generic names)
-4. Falls back to `null` (global scope)
+3. Falls back to `null` (global scope)
+
+There is no basename fallback — this avoids false positives from generic directory names like `src`, `lib`, `app`, etc.
 
 ### Two-pass recall
 When a project is detected and `project` is omitted from recall:
@@ -80,7 +89,7 @@ When a project is detected and `project` is omitted from recall:
 4. Re-ranks with scope boost: project memories get +0.15
 
 ### Conflict suppression
-When both a project and global memory score highly on the same query (both >0.5, within 0.2 of each other), the global memory is suppressed. This means a project-specific "use npm" overrides a global "use pnpm".
+When both a project and global memory score highly on the same query (both >0.7 vector similarity, within 0.1 of each other, same category), the global memory is suppressed. This means a project-specific "use npm" overrides a global "use pnpm". Comparison uses raw vector similarity to avoid scope-boost bias.
 
 ### Scope-aware dedup
 The same content can exist as both global and project-specific — they have different scopes and won't be flagged as duplicates. Dedup checks (both hash and vector similarity) are scoped to the same project.
@@ -95,14 +104,28 @@ The same content can exist as both global and project-specific — they have dif
 ### Retrieval pipeline
 1. **Orama hybrid search** — Combined vector (384-dim embeddings via `@huggingface/transformers`) + full-text search
 2. **SQLite enrichment** — Load full memory records with metadata
-3. **Re-ranking** — `0.7 * orama_score + 0.15 * effective_rank + 0.15 * scope_boost`
+3. **Re-ranking** — `(0.7 * orama_score + 0.15 * effective_rank + scope_boost + trigger_boost) * freshness`
    - Effective rank = `score + ln(use_count + 1) - 0.01 * days_since_used`
    - Scope boost = +0.15 for project-specific memories in two-pass mode
+   - Trigger boost = +0.20 when a trigger pattern matches the query
+   - Freshness = 0.3 if expired, ramps 0.5→1.0 in final 7 days, 1.0 otherwise
 
 ### Deduplication
 Two-layer dedup on store:
 1. **Content hash** — SHA-256 of trimmed content, scoped to (hash, project)
 2. **Vector similarity** — >0.85 cosine similarity within same scope
 
+### Embedding
+- Model: `Xenova/all-MiniLM-L6-v2` (384 dimensions)
+- LRU cache: 256 entries with proper delete+re-insert on access
+- Batch embedding: uses native HuggingFace pipeline batching for consolidation operations
+- Model is preloaded at server startup to avoid cold-start latency
+
+### Data integrity
+- **Write mutex**: Search index saves are serialized via promise chain to prevent corruption from concurrent tool calls
+- **Shutdown save**: Search index is persisted on SIGINT/SIGTERM before process exit
+- **Index rebuild**: `memory_sync rebuild` clears the existing index before rebuilding to prevent ghost entries
+- **FK cascade**: `memory_events` has `ON DELETE CASCADE` to `memories`, preventing orphaned events
+
 ### Schema
-SQLite with WAL mode. Migrations tracked in `schema_meta` table. Current version: 2.
+SQLite with WAL mode. Migrations tracked in `schema_meta` table. Current version: 4.
