@@ -29,7 +29,11 @@ function autoDetectCategory(content) {
 function hashContent(content) {
     return createHash("sha256").update(content.trim()).digest("hex");
 }
+const MAX_CONTENT_LENGTH = 5000;
 export async function storeMemory(opts) {
+    if (opts.content.length > MAX_CONTENT_LENGTH) {
+        throw new Error(`Memory content too long (${opts.content.length} chars, max ${MAX_CONTENT_LENGTH}). Summarize before storing.`);
+    }
     const db = getDb();
     const contentHash = hashContent(opts.content);
     // Resolve project: auto-detect when omitted (undefined), explicit otherwise

@@ -45,7 +45,7 @@ export async function saveSearchIndex(): Promise<void> {
   // Serialize writes: each save waits for the previous one to finish
   const prev = _saveChain;
   _saveChain = prev
-    .then(() => persistToFile(_index!, "json", getIndexPath()))
+    .then(async () => { await persistToFile(_index!, "json", getIndexPath()); })
     .catch(() => {});  // Don't let a failed save break the chain
   await _saveChain;
 }

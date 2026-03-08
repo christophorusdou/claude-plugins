@@ -215,24 +215,27 @@ export function matchTriggers(triggers, query) {
 }
 /**
  * Suppress global memories that conflict with project-specific ones.
- * Conservative: only suppresses when both score very high (>0.7) and are
- * within 0.1 of each other AND share category (indicating topic overlap).
- * This prevents unrelated global memories from being incorrectly suppressed.
+ * Conservative: only suppresses when both score very high (>0.7 vector
+ * similarity) and are within 0.1 of each other AND share category.
+ *
+ * Uses vector_similarity (raw Orama score) instead of final_score to avoid
+ * the scope boost (+0.15) giving project memories an unfair advantage in
+ * the proximity comparison.
  */
 function resolveConflicts(results) {
     const projectMemories = results.filter((r) => r.memory.project !== null);
     const globalMemories = results.filter((r) => r.memory.project === null);
     const suppressIds = new Set();
     for (const proj of projectMemories) {
-        if (proj.final_score < 0.7)
+        if (proj.vector_similarity < 0.7)
             continue;
         for (const glob of globalMemories) {
-            if (glob.final_score < 0.7)
+            if (glob.vector_similarity < 0.7)
                 continue;
             // Must be same category (indicates topic overlap)
             if (proj.memory.category !== glob.memory.category)
                 continue;
-            if (Math.abs(proj.final_score - glob.final_score) < 0.1) {
+            if (Math.abs(proj.vector_similarity - glob.vector_similarity) < 0.1) {
                 suppressIds.add(glob.memory.id);
             }
         }

@@ -1,6 +1,11 @@
 import type { AnyOrama } from "@orama/orama";
 export declare function getSearchIndex(): Promise<AnyOrama>;
 export declare function saveSearchIndex(): Promise<void>;
+/**
+ * Reset the in-memory index, forcing a fresh one on next getSearchIndex() call.
+ * Used by rebuildSearchIndex to clear stale entries.
+ */
+export declare function resetSearchIndex(): void;
 export declare function indexMemory(memoryId: string, content: string, embedding: number[] | Float32Array, category: string, project: string): Promise<void>;
 export declare function removeFromIndex(memoryId: string): Promise<void>;
 export declare function updateInIndex(memoryId: string, content: string, embedding: number[] | Float32Array, category: string, project: string): Promise<void>;

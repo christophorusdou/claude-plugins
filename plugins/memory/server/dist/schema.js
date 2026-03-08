@@ -1,4 +1,4 @@
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 const MIGRATIONS = {
     1: [
         `CREATE TABLE IF NOT EXISTS memories (
@@ -47,6 +47,21 @@ const MIGRATIONS = {
         `ALTER TABLE memories ADD COLUMN version_context TEXT`,
         `ALTER TABLE memories ADD COLUMN valid_until TEXT`,
         `CREATE INDEX IF NOT EXISTS idx_memories_valid_until ON memories(valid_until)`,
+    ],
+    4: [
+        // Add FK constraint on memory_events → memories with cascade delete
+        // SQLite requires table recreation to add foreign keys
+        `CREATE TABLE memory_events_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      memory_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+      event_type TEXT NOT NULL,
+      detail TEXT,
+      created_at TEXT NOT NULL
+    )`,
+        `INSERT INTO memory_events_new SELECT * FROM memory_events`,
+        `DROP TABLE memory_events`,
+        `ALTER TABLE memory_events_new RENAME TO memory_events`,
+        `CREATE INDEX IF NOT EXISTS idx_events_memory_id ON memory_events(memory_id)`,
     ],
 };
 export function initSchema(db) {

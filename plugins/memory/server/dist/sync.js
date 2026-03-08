@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { execSync } from "node:child_process";
 import { getDb, getDataDir } from "./db.js";
 import { embed } from "./embeddings.js";
-import { indexMemory, saveSearchIndex } from "./search-index.js";
+import { indexMemory, saveSearchIndex, resetSearchIndex } from "./search-index.js";
 import { rowToMemory } from "./types.js";
 const JSONL_FILE = "memories.jsonl";
 function getJsonlPath() {
@@ -61,23 +61,22 @@ export async function importFromJsonl() {
 /**
  * Rebuild the Orama search index from all memories in SQLite.
  * Used after sync pull or when index is corrupted.
+ * Clears the existing index first to remove orphaned entries.
  */
 export async function rebuildSearchIndex() {
     const db = getDb();
     const rows = db
         .prepare("SELECT * FROM memories ORDER BY created_at ASC")
         .all();
-    // Force a fresh index by clearing the existing one
-    // We'll just rebuild by indexing all memories
+    // Reset the in-memory index so getSearchIndex() creates a fresh one
+    resetSearchIndex();
     let count = 0;
     for (const row of rows) {
         const embedding = await embed(row.content);
         await indexMemory(row.id, row.content, embedding, row.category, row.project ?? "");
         count++;
     }
-    if (count > 0) {
-        await saveSearchIndex();
-    }
+    await saveSearchIndex();
     return count;
 }
 /** Git operations for sync */

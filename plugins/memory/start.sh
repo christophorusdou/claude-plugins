@@ -10,7 +10,7 @@ cd "$SERVER_DIR"
 
 # Lazy install: only run if node_modules is missing
 if [ ! -d "node_modules" ]; then
-  npm install --production 2>/dev/null
+  pnpm install --prod
 fi
 
 exec node dist/index.js

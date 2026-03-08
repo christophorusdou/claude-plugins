@@ -17,6 +17,8 @@ import { findConsolidationGroups } from "./tools/consolidate.js";
 import { validateTriggers } from "./retrieval.js";
 import { closeDb } from "./db.js";
 import { getDetectedProject } from "./project-detect.js";
+import { saveSearchIndex } from "./search-index.js";
+import { preloadModel } from "./embeddings.js";
 const server = new McpServer({
     name: "memory",
     version: "1.0.0",
@@ -524,19 +526,20 @@ server.tool("memory_import", "Import memories from a MEMORY.md file. Splits by #
 async function main() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
+    // Preload embedding model in background to avoid cold-start latency
+    preloadModel();
 }
 main().catch((err) => {
     console.error("Fatal error:", err);
     closeDb();
     process.exit(1);
 });
-// Cleanup on exit
-process.on("SIGINT", () => {
+// Cleanup on exit: save search index before closing DB
+async function shutdown() {
+    await saveSearchIndex().catch(() => { });
     closeDb();
     process.exit(0);
-});
-process.on("SIGTERM", () => {
-    closeDb();
-    process.exit(0);
-});
+}
+process.on("SIGINT", () => void shutdown());
+process.on("SIGTERM", () => void shutdown());
 //# sourceMappingURL=index.js.map

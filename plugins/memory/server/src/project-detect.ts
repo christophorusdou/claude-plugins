@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join, basename } from "node:path";
+import { join } from "node:path";
 
 let _detected: string | null | undefined = undefined; // undefined = not yet detected
 
@@ -8,8 +8,11 @@ let _detected: string | null | undefined = undefined; // undefined = not yet det
  * Priority:
  *   1. package.json "name" field
  *   2. Regex match /projects/<name>/ in path
- *   3. Directory basename (if not home dir)
- *   4. null (no project — global scope)
+ *   3. null (no project — global scope)
+ *
+ * We intentionally don't fall back to basename(cwd) because common directory
+ * names (src, lib, app, build, work, code) would create meaningless project
+ * scopes that fragment the memory store.
  */
 function detectProject(): string | null {
   const cwd = process.cwd();
@@ -35,17 +38,7 @@ function detectProject(): string | null {
     return projectsMatch[1];
   }
 
-  // 3. Directory basename (skip if home dir)
-  const home = process.env.HOME || process.env.USERPROFILE || "";
-  if (cwd !== home && cwd !== "/") {
-    const dir = basename(cwd);
-    // Skip generic directory names
-    if (!["tmp", "temp", "Downloads", "Desktop", "Documents"].includes(dir)) {
-      return dir;
-    }
-  }
-
-  // 4. No project detected
+  // 3. No project detected — use global scope
   return null;
 }
 

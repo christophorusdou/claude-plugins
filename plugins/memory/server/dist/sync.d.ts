@@ -8,6 +8,7 @@ export declare function importFromJsonl(): Promise<{
 /**
  * Rebuild the Orama search index from all memories in SQLite.
  * Used after sync pull or when index is corrupted.
+ * Clears the existing index first to remove orphaned entries.
  */
 export declare function rebuildSearchIndex(): Promise<number>;
 /** Git operations for sync */

@@ -18,6 +18,7 @@ import { validateTriggers } from "./retrieval.js";
 import { closeDb } from "./db.js";
 import { getDetectedProject } from "./project-detect.js";
 import { saveSearchIndex } from "./search-index.js";
+import { preloadModel } from "./embeddings.js";
 
 const server = new McpServer({
   name: "memory",
@@ -626,6 +627,8 @@ server.tool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  // Preload embedding model in background to avoid cold-start latency
+  preloadModel();
 }
 
 main().catch((err) => {
