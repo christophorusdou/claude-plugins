@@ -1,0 +1,8 @@
+{
+  "name": "bedrock-oidc-auth",
+  "description": "Guides Claude Code sessions on authenticating to AWS Bedrock via OIDC SSO (Tyler Tech / Okta) and Cognito Identity Pool. Teaches how to install, configure, and use the bedrock-oidc-auth library to get credentials and call Claude API programmatically.",
+  "version": "0.2.0",
+  "author": {
+    "name": "Chris"
+  }
+}

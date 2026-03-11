@@ -25,6 +25,26 @@
       },
       "source": "./plugins/memory",
       "category": "knowledge"
+    },
+    {
+      "name": "homelab-context",
+      "description": "Homelab infrastructure knowledge, deployment commands, and architecture guidance for cross-project use",
+      "version": "1.0.0",
+      "author": {
+        "name": "Chris"
+      },
+      "source": "./plugins/homelab-context",
+      "category": "infrastructure"
+    },
+    {
+      "name": "bedrock-oidc-auth",
+      "description": "Guides Claude Code sessions on authenticating to AWS Bedrock via OIDC SSO and calling the Claude API programmatically",
+      "version": "0.2.0",
+      "author": {
+        "name": "Chris"
+      },
+      "source": "./plugins/bedrock-oidc-auth",
+      "category": "development"
     }
   ]
 }
