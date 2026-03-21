@@ -28,7 +28,8 @@ curl -H "Authorization: token $(forgejo-token)" https://git.cdrift.com/api/v1/..
 
 ### Git remotes
 
-- **Primary (Forgejo):** `https://git.cdrift.com/chris/{repo}.git` or `ssh://git@git.cdrift.com:chris/{repo}.git`
+- **Primary (Forgejo HTTPS):** `https://git.cdrift.com/chris/{repo}.git`
+- **Primary (Forgejo SSH):** `forgejo-git:chris/{repo}.git` (SSH alias, port 2222 on N100 direct IP)
 - **Mirror (GitHub):** one-way sync via Forgejo CI workflow, not a primary remote
 - HTTPS credentials stored in macOS Keychain via `git credential-osxkeychain`
 

@@ -4,6 +4,11 @@ description: >
   Review infrastructure changes for common homelab mistakes. Use after
   modifying Docker Compose files, Caddyfile, Forgejo workflows, or
   deployment scripts.
+  <example>Review my compose changes for issues</example>
+  <example>Check the Caddyfile for route conflicts</example>
+  <example>I just added a new stack, review it</example>
+model: sonnet
+color: cyan
 allowed-tools: Read, Grep, Glob
 ---
 

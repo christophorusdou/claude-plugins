@@ -25,6 +25,7 @@ Deploy or restart a Docker Compose stack on the N100 (192.168.130.160).
 | record-keeper | /opt/apps/record-keeper/ |
 | claude-dash | ~/homelab/docker-compose/apps/claude-dash/ |
 | homepage | ~/homelab/docker-compose/apps/homepage/ |
+| vidarchive | /opt/apps/vidarchive/ |
 
 ## Execution
 

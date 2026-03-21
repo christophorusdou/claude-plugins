@@ -24,9 +24,11 @@ if [ ! -f "$file_path" ]; then
 fi
 
 # Validate compose syntax
-if ! docker compose -f "$file_path" config -q 2>/tmp/compose-validate-err; then
+errfile=$(mktemp)
+if ! docker compose -f "$file_path" config -q 2>"$errfile"; then
   echo "WARNING: Docker Compose validation failed for $file_path:" >&2
-  cat /tmp/compose-validate-err >&2
+  cat "$errfile" >&2
 fi
+rm -f "$errfile"
 
 exit 0

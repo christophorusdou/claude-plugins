@@ -19,8 +19,9 @@ if [[ "$file_path" == *.env ]] || [[ "$file_path" == *.env.* ]] || [[ "$file_pat
   exit 2
 fi
 
-# Block credentials/masterkey/secret files
-if [[ "$file_path" == *credentials* ]] || [[ "$file_path" == *masterkey* ]] || [[ "$file_path" == *secret* ]]; then
+# Block credentials/masterkey/secret files (basename only to avoid false positives on docs/code)
+basename=$(basename "$file_path")
+if [[ "$basename" == *credentials* ]] || [[ "$basename" == *masterkey* ]] || [[ "$basename" == secrets.* ]] || [[ "$basename" == *.secret ]] || [[ "$basename" == .secrets ]]; then
   echo "BLOCK: Refusing to edit secrets file: $file_path. Use macOS Keychain: security add-generic-password -s <service> -a <account> -w <value> -U" >&2
   exit 2
 fi

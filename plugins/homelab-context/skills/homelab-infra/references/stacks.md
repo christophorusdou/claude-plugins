@@ -128,6 +128,7 @@
 **Notes:**
 - Go API + React SPA (single binary)
 - CI image pushed to Forgejo container registry (internal)
+- Uses L40S Ollama for document vision analysis (qwen3.5:27b via HTTPS :11435, CA cert at `/certs/ollama-ca.crt` in container)
 
 ---
 
@@ -183,6 +184,27 @@
 
 ---
 
+## Vidarchive Stack (YouTube Archiver)
+**Path on N100:** `/opt/apps/vidarchive/`
+
+| Service | Image | Ports | Network Alias |
+|---------|-------|-------|---------------|
+| vidarchive | forgejo:3000/chris/vidarchive | internal (5000) | vidarchive |
+
+**Database:** none
+**Depends on:** nothing (standalone)
+**Auth:** Cloudflare Access (email OTP), not Zitadel
+**Volumes:** /opt/vidarchive/downloads → /downloads, /opt/vidarchive/cookies → /cookies:ro
+**Notes:**
+- Python/Flask + yt-dlp + gunicorn (2 workers, 600s timeout)
+- Downloads staged to N100 local disk, nightly cron rsyncs to TrueNAS
+- `/opt/vidarchive/downloads` must be owned by UID 1000 (container user)
+- Disk space guard: refuses downloads if < 20GB free
+- CI: push to main → pytest → Docker build → push to Forgejo registry
+- Sync script: `/opt/vidarchive/sync-to-nas.sh` (WoL → rsync → shutdown TrueNAS)
+
+---
+
 ## Caddy Route Table
 
 | Domain | Target | Stack |
@@ -192,6 +214,7 @@
 | git.cdrift.com | forgejo:3000 | forgejo |
 | vault.cdrift.com | recordkeeper:8080 | record-keeper |
 | tolgee.cdrift.com | tolgee:8080 | tolgee |
+| vidarchive.cdrift.com | vidarchive:5000 | vidarchive |
 
 All routes: HTTP only (Caddy `auto_https off`), Cloudflare terminates SSL.
 
@@ -223,5 +246,6 @@ All on shared Postgres 16 (postgres:16-alpine) at `postgres:5432`.
    - `cd ~/homelab/docker-compose/apps/tolgee && docker compose up -d`
    - `cd /opt/apps/ticket-pointing && docker compose up -d`
    - `cd /opt/apps/record-keeper && docker compose up -d`
+   - `cd /opt/apps/vidarchive && docker compose up -d`
    - `cd ~/homelab/docker-compose/apps/claude-dash && docker compose up -d`
    - `cd ~/homelab/docker-compose/apps/homepage && docker compose up -d`

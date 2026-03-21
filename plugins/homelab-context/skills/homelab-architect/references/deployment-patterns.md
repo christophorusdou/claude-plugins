@@ -56,3 +56,18 @@
 | Storage | Mac Mini Prometheus | Scrapes OTel collector on :8889 |
 | Dashboard | Mac Mini Grafana | Create dashboard at http://192.168.130.170:3000 |
 | Note | | Mac Mini sleeps 8pm-8am — monitoring has overnight gaps |
+
+## Pattern 6: Media Archival
+
+**Example:** vidarchive (vidarchive.cdrift.com)
+
+| Component | Where | How |
+|-----------|-------|-----|
+| Web UI + download worker | N100 Docker stack | Flask + yt-dlp + gunicorn, image from Forgejo registry |
+| Staging storage | N100 local disk | `/opt/vidarchive/downloads` (UID 1000), disk guard refuses if <20GB free |
+| Long-term storage | TrueNAS | Nightly rsync via `/opt/vidarchive/sync-to-nas.sh` (WoL → rsync → shutdown) |
+| Auth | Cloudflare Access | Email OTP (not Zitadel) |
+| Domain | Cloudflare Tunnel | `vidarchive.cdrift.com` → Caddy → vidarchive:5000 |
+| CI | Forgejo Actions | Push to main → pytest → Docker build → push to Forgejo registry |
+
+Key pattern: stage downloads to fast local disk, then batch-sync to NAS on a schedule. Keeps NAS powered off most of the time (WoL on demand).

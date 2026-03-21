@@ -13,7 +13,7 @@ This skill provides detailed reference for working on homelab infrastructure.
 
 ## Architecture Overview
 
-The homelab runs a **7-stack Docker deployment** on the N100 (Debian 13, 192.168.130.160), with a separate monitoring stack on the Mac Mini M4 (192.168.130.170).
+The homelab runs a **10-stack Docker deployment** on the N100 (Debian 13, 192.168.130.160), with a separate monitoring stack on the Mac Mini M4 (192.168.130.170).
 
 All stacks connect via the `shared` Docker network. Services communicate by hostname (e.g., `postgres`, `redis`, `zitadel`, `forgejo`).
 
@@ -37,6 +37,19 @@ All stacks connect via the `shared` Docker network. Services communicate by host
 - N100: `ssh n100` (root)
 - Mac Mini: `ssh mac-mini-server` (chris)
 - TrueNAS: `ssh truenas` (chris)
+- L40S: `ssh l40s` (aitin)
+- All shortcuts work remotely via Tailscale subnet route (no config changes needed)
+
+### Tailscale Remote Access
+- N100 Tailscale IP: 100.72.109.30
+- Subnet router: 192.168.130.0/24 (full LAN access from anywhere)
+- Exit node: enabled (opt-in per client)
+- Config: `tailscale up --advertise-routes=192.168.130.0/24 --advertise-exit-node --accept-dns=false`
+
+### Forgejo API
+- Token in macOS Keychain: service `forgejo-api`, account `chris`
+- Shell helper: `forgejo-token` (defined in ~/.zshenv)
+- Usage: `curl -H "Authorization: token $(forgejo-token)" https://git.cdrift.com/api/v1/...`
 
 ### Stack Management
 - Deploy/restart: `ssh n100 "cd <stack-path> && docker compose pull && docker compose up -d"`

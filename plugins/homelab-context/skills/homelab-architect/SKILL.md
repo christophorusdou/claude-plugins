@@ -15,10 +15,10 @@ Use this reference when planning where and how to deploy a new project on the ho
 
 | Resource | Specs | Running Services | Best For |
 |----------|-------|-----------------|----------|
-| **N100** (always-on) | 4C Intel N100, 32GB DDR5, 488GB NVMe | 7 Docker stacks, 14+ containers, Postgres 16 (6 DBs), Redis 7.4 | Always-on APIs, web services, Git/CI |
+| **N100** (always-on) | 4C Intel N100, 32GB DDR5, 488GB NVMe | 10 Docker stacks, 15+ containers, Postgres 16 (6 DBs), Redis 7.4 | Always-on APIs, web services, Git/CI |
 | **Mac Mini M4** (sleeps 8pm-8am) | 8C ARM64, 16GB, 256GB SSD | Prometheus, Grafana, Uptime Kuma, OTel Collector, Traefik, Forgejo macOS runner | Monitoring, dashboards, macOS CI (Swift/xcodebuild) |
 | **TrueNAS** (on-demand WoL) | 20C i7-14700K, 64GB DDR5, 21TB RAIDZ1 | SMB, NFS shares | Storage, backups, media serving |
-| **L40S Remote** (shared server) | 8C CPU, 128GB RAM, NVIDIA L40S 48GB VRAM, 3.5TB (2.3TB free) | Speaches TTS (:8000), Qwen3 TTS (:8100), TensorBoard (:6006), Dapr, K8s (kind), Redis 6 | GPU/ML training, TTS/STT, AI experiments |
+| **L40S Remote** (shared server) | 8C CPU, 128GB RAM, NVIDIA L40S 48GB VRAM, 3.5TB (2.3TB free) | Speaches STT (:8000), Qwen3 TTS (:8100), Ollama (:11434/:11435), TensorBoard (:6006), Dapr, K8s (kind), Redis 6 | GPU/ML training, TTS/STT, LLM inference, AI experiments |
 
 ## Shared Services (available to any new project)
 
@@ -47,6 +47,9 @@ Use this reference when planning where and how to deploy a new project on the ho
 | Cache / sessions / pub-sub | **Redis 7.4** | Already running on N100 |
 | Git / CI/CD | **Forgejo** | At git.cdrift.com, two runners (Linux + macOS) |
 | Container registry | **Forgejo registry** | Internal: forgejo:3000, external: git.cdrift.com |
+| Remote access (VPN) | **Tailscale** on N100 | Subnet router 192.168.130.0/24, exit node, IP: 100.72.109.30 |
+| LLM inference | **Ollama** on L40S | :11434 (HTTP), :11435 (HTTPS), auto-unloads models |
+| Media archival | **N100 + TrueNAS** | Stage to local disk, nightly rsync to NAS (vidarchive pattern) |
 
 ## L40S Remote Server Details
 
@@ -54,9 +57,10 @@ Use this reference when planning where and how to deploy a new project on the ho
 - **Docker:** Ready, no sudo needed
 - **GPU:** NVIDIA L40S 48GB VRAM (currently ~8GB used)
 - **Storage:** 3.5TB /shared (2.3TB free), 30+ projects in /shared/projects/
-- **Running services:** Speaches TTS (:8000), Qwen3 TTS (:8100), TensorBoard (:6006), Dapr runtime, K8s (kind cluster), Redis 6
-- **Project categories:** AI/ML, LLM/RAG (graphrag, ollama, autogen), Speech/Audio (ChatTTS, MeloTTS, CoquiTTS), microservices (Dapr)
-- **Warning:** Shared server — be careful with resources, check GPU memory before launching large models
+- **Running services:** Speaches STT (:8000), Qwen3 TTS (:8100), Ollama (:11434 HTTP, :11435 HTTPS), TensorBoard (:6006), Dapr runtime, K8s (kind cluster), Redis 6
+- **Ollama models:** qwen3:8b (~5GB VRAM, used by speech-to-text), qwen3.5:27b (~16GB VRAM, used by record-keeper for vision). Models auto-unload after idle.
+- **Project categories:** AI/ML, LLM/RAG, Speech/Audio, microservices (Dapr)
+- **Warning:** Shared server — be careful with resources, check `nvidia-smi` before launching large models
 
 ## Common Architecture Patterns
 
