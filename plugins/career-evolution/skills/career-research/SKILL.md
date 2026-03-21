@@ -28,8 +28,8 @@ Load all context before doing any research.
    - `trends/ai-capabilities.md`
    - `trends/job-market.md`
    - `trends/ai-tooling.md`
-7. Read `skills/career-research/references/research-sources.md` for search strategies and trusted domains
-8. Read `skills/career-research/references/analysis-framework.md` for the analysis approach
+7. Read `references/research-sources.md` for search strategies and trusted domains
+8. Read `references/analysis-framework.md` for the analysis approach
 
 Summarize the current state before proceeding: What are Chris's active concerns? What were the key findings from the last session? What trends are we tracking?
 
@@ -195,6 +195,6 @@ Run these self-improvement prompts:
 ### 7e: Commit and Schedule
 - Git commit all changes (stage specific directories, not `git add -A`):
   ```bash
-  git add research/ trends/ decisions/ profile/ data/career.db && git commit -m "research session YYYY-MM-DD: [brief summary]"
+  git add research/ trends/ decisions/ profile/ references/ data/career.db && git commit -m "research session YYYY-MM-DD: [brief summary]"
   ```
 - Suggest next session date (2-4 weeks out based on urgency of findings)
