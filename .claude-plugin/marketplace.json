@@ -45,6 +45,26 @@
       },
       "source": "./plugins/bedrock-oidc-auth",
       "category": "development"
+    },
+    {
+      "name": "career-evolution",
+      "description": "Periodic career research, trend tracking, and strategic decision support for software engineers navigating the AI era",
+      "version": "1.0.0",
+      "author": {
+        "name": "Chris"
+      },
+      "source": "./plugins/career-evolution",
+      "category": "knowledge"
+    },
+    {
+      "name": "ai-efficiency-advisor",
+      "description": "AI tool efficiency coaching — usage analysis, feature discovery, project portfolio health, improvement tracking",
+      "version": "1.0.0",
+      "author": {
+        "name": "Chris"
+      },
+      "source": "./plugins/ai-efficiency-advisor",
+      "category": "productivity"
     }
   ]
 }
