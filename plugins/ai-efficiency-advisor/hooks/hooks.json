@@ -1,0 +1,16 @@
+{
+  "description": "AI efficiency advisor hooks — nudge when overdue for check-in",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/session-start-nudge.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
