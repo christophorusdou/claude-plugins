@@ -1,0 +1,47 @@
+#!/bin/bash
+# Career Evolution - Session Start Context
+
+# Only show context when in the future project directory
+FUTURE_DIR_1="/Volumes/d50-970p-1t/projects/future"
+FUTURE_DIR_2="/Users/chris/projects/future"
+
+if [[ "$PWD" != "$FUTURE_DIR_1"* ]] && [[ "$PWD" != "$FUTURE_DIR_2"* ]]; then
+  exit 0
+fi
+
+# Find the most recent research session
+RESEARCH_DIR="$PWD/research"
+if [ -d "$RESEARCH_DIR" ]; then
+  LATEST=$(ls -1 "$RESEARCH_DIR"/*.md 2>/dev/null | grep -v _index | sort -r | head -1)
+  if [ -n "$LATEST" ]; then
+    LAST_DATE=$(basename "$LATEST" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
+    if [ -n "$LAST_DATE" ]; then
+      DAYS_AGO=$(( ($(date +%s) - $(date -j -f "%Y-%m-%d" "$LAST_DATE" +%s 2>/dev/null || echo $(date +%s))) / 86400 ))
+      echo "Career Evolution: Last research session was ${DAYS_AGO} days ago (${LAST_DATE})."
+      if [ "$DAYS_AGO" -ge 14 ]; then
+        echo "Consider running /research latest for a fresh analysis."
+      fi
+    fi
+  else
+    echo "Career Evolution: No research sessions yet. Run /research latest to start."
+  fi
+else
+  echo "Career Evolution: No research sessions yet. Run /research latest to start."
+fi
+
+# Check for decisions needing review
+DECISIONS_DIR="$PWD/decisions"
+if [ -d "$DECISIONS_DIR" ]; then
+  TODAY=$(date +%Y-%m-%d)
+  OVERDUE=$(grep -rl "Review date:" "$DECISIONS_DIR"/*.md 2>/dev/null | while read f; do
+    REVIEW_DATE=$(grep "Review date:" "$f" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
+    if [ -n "$REVIEW_DATE" ] && [[ "$REVIEW_DATE" < "$TODAY" || "$REVIEW_DATE" == "$TODAY" ]]; then
+      echo "$(basename "$f")"
+    fi
+  done)
+  if [ -n "$OVERDUE" ]; then
+    echo "Decisions due for review: $OVERDUE"
+  fi
+fi
+
+echo "Commands: /research, /career, /decisions"
