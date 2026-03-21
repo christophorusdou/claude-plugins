@@ -68,7 +68,7 @@ Update item status based on response.
 ## Step 5: Research (full/research modes only)
 
 Dispatch the **research-scout** agent with prompt:
-> "Search for new Claude Code features, plugin releases, and AI coding tool innovations since [last check-in date]. Read the user's current settings at ~/.claude/settings.json and the feature checklist at [plugin path]/skills/efficiency-metrics/references/feature-checklist.md. Compare what's available vs what's being used. Check if opportunity-radar's SearXNG is available at http://192.168.130.160:8888. Return findings with relevance scores."
+> "Search for new Claude Code features, plugin releases, and AI coding tool innovations since [last check-in date]. Read the user's current settings at ~/.claude/settings.json and the current feature adoption data at /Volumes/d50-970p-1t/projects/ai-efficiency/data/feature-adoption.json. Compare what's available vs what's being used. Check if opportunity-radar's SearXNG is available at http://192.168.130.160:8888. Return findings with relevance scores."
 
 Present findings grouped by relevance (high/medium/low). For each high-relevance finding, explain why it matters for the user's specific workflow.
 

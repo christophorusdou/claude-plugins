@@ -34,16 +34,27 @@ fi
 DAYS_AGO=$(( (NOW_EPOCH - LAST_EPOCH) / 86400 ))
 
 if [ "$DAYS_AGO" -ge "$NUDGE_DAYS" ]; then
-  # Count sessions and cost since last check-in
-  SESSIONS=0
-  TOTAL_COST="0"
-  if [ -d "$SNAPSHOT_DIR" ]; then
-    while IFS= read -r snap; do
-      SESSIONS=$((SESSIONS + 1))
-      COST=$(python3 -c "import json; print(json.load(open('$snap')).get('cost_usd', 0))" 2>/dev/null || echo 0)
-      TOTAL_COST=$(python3 -c "print(round($TOTAL_COST + $COST, 2))" 2>/dev/null || echo "$TOTAL_COST")
-    done < <(find "$SNAPSHOT_DIR" -name "*.json" -newer "$LATEST" 2>/dev/null)
-  fi
+  # Single python3 invocation to count sessions and sum cost from all newer snapshots
+  STATS=$(python3 -c "
+import os, json, glob
+snap_dir = os.path.expanduser('$SNAPSHOT_DIR')
+ref_file = '$LATEST'
+ref_mtime = os.path.getmtime(ref_file)
+sessions = 0
+total_cost = 0.0
+for f in glob.glob(os.path.join(snap_dir, '*.json')):
+    if os.path.getmtime(f) > ref_mtime:
+        sessions += 1
+        try:
+            with open(f) as fh:
+                total_cost += json.load(fh).get('cost_usd', 0)
+        except Exception:
+            pass
+print(f'{sessions} {total_cost:.2f}')
+" 2>/dev/null || echo "0 0.00")
+
+  SESSIONS=$(echo "$STATS" | cut -d' ' -f1)
+  TOTAL_COST=$(echo "$STATS" | cut -d' ' -f2)
 
   echo "[ai-efficiency] It's been ${DAYS_AGO} days since your last efficiency check-in (${LAST_DATE}). Since then: ${SESSIONS} sessions, \$${TOTAL_COST} spent. Consider running /check-in in the ai-efficiency project."
 fi

@@ -1,6 +1,6 @@
 ---
 name: efficiency-metrics
-description: Metric definitions, formulas, and data source mappings for AI usage efficiency analysis. Load this skill when computing or interpreting efficiency metrics.
+description: This skill should be used when analyzing AI coding tool efficiency, interpreting usage metrics like cost-per-session or cost-per-line, understanding token ratios, detecting anti-patterns (thrashing, runaway sessions, context stuffing), reviewing feature adoption status, or mapping data sources for Claude Code usage analysis. Relevant when discussing spending, efficiency trends, wasted sessions, model selection, or context exhaustion.
 ---
 
 # Efficiency Metrics
@@ -44,11 +44,14 @@ Core principle: **efficiency = better outcomes with less waste** (time, tokens, 
 
 ## Anti-Patterns
 
-See `references/anti-patterns.md` for detection rules.
+Detected patterns: thrashing, runaway sessions, retry storms, zero-output, context stuffing, model overuse, marathon drift. Each has severity (high/medium/low), detection rules, and recommended actions. See `references/anti-patterns.md` for full detection rules and thresholds.
 
 ## Feature Tracking
 
-See `references/feature-checklist.md` for known features and adoption status.
+Live adoption data: `/Volumes/d50-970p-1t/projects/ai-efficiency/data/feature-adoption.json`
+Feature catalog: `references/feature-checklist.md`
+
+Key features tracked: /voice, model selection, /loop, /compact, channels, remote control, effort frontmatter, CLAUDE_PLUGIN_DATA, rate limits in statusline, and 15+ others. The catalog is static reference; the JSON file is the canonical live tracker updated by each check-in.
 
 ## Interpreting Metrics
 
@@ -56,3 +59,5 @@ See `references/feature-checklist.md` for known features and adoption status.
 - Trending **up** on zero_output_rate = sessions are becoming less productive
 - model_selection_ratio near 100% Opus = potential cost savings
 - context_exhaustion_rate > 20% = need more plan mode or /compact usage
+
+See `references/metrics-catalog.md` for full Good/Warning/Bad thresholds per metric.

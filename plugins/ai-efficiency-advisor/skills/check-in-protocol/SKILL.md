@@ -1,6 +1,6 @@
 ---
 name: check-in-protocol
-description: Step-by-step protocol for conducting an AI efficiency check-in session. Load this skill when running /check-in to follow the correct review workflow.
+description: This skill should be used when conducting an AI efficiency check-in, reviewing the check-in workflow, understanding review cadence (quick/full/research/portfolio modes), generating or reviewing action items, conducting self-report surveys with data validation, managing action item categories, or running the self-evolution protocol. Relevant when running /check-in or asking about the efficiency review process.
 ---
 
 # Check-In Protocol
@@ -17,42 +17,19 @@ description: Step-by-step protocol for conducting an AI efficiency check-in sess
 
 The SessionStart hook nudges after 7 days without a check-in.
 
-## Check-In Workflow (10 Steps)
+## Check-In Workflow
 
-### 1. Data Health Check
-Verify sources are fresh. Flag issues immediately — stale data means stale recommendations.
+The step-by-step execution is defined in `commands/check-in.md`. This skill provides the reference context (cadence, validation rules, action item format, self-evolution protocol) that the command relies on.
 
-### 2. Load Previous State
-Read action-items.json, feature-adoption.json, latest check-in. Establish the review period.
+## Action Item Requirements
 
-### 3. Compute Metrics
-Dispatch usage-analyzer agent. Wait for structured report before continuing.
-
-### 4. Present Metrics
-Show the user a clean summary. Highlight trends (improving/declining) and any metric in the "bad" range per metrics-catalog.md thresholds.
-
-### 5. Review Action Items
-For each active item, survey the user. Then cross-validate against data. Note discrepancies honestly.
-
-### 6. Research (full/research modes)
-Dispatch research-scout agent. Present findings grouped by relevance.
-
-### 7. Portfolio Review (full/portfolio modes)
-Dispatch portfolio-scout agent (feed research findings if available). Present health report.
-
-### 8. Generate Action Items
-Based on all findings, propose 3-7 new action items. Each must be:
+Every action item generated must be:
 - **Measurable**: "Reduce Opus usage to <80%" not "Use Sonnet more"
 - **Time-bound**: "By next check-in" or specific date
 - **Validatable**: Specify how to check against data
 - **Specific**: One clear action, not a vague goal
-- **Categorized**: try-feature | stop-doing | investigate | configure | stop-project | consolidate-projects | new-project | rearchitect
-
-### 9. Save Results
-Write check-in JSON and update data files. All changes go to `/Volumes/d50-970p-1t/projects/ai-efficiency/data/`.
-
-### 10. Self-Evolution
-Ask if the system should change. Log any changes.
+- **Categorized**: One of the categories below
+- **Self-contained**: Includes `workFrom` field, full implementation details, enough context to act on from the relevant project directory
 
 ## Validation Rules
 
