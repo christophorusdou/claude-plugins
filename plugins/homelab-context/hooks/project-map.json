@@ -1,0 +1,41 @@
+{
+  "projects": {
+    "ticket-pointing": {
+      "stack": "ticket-pointing",
+      "port": 3001,
+      "database": "ticket_pointing",
+      "domain": "pointingapi.cdrift.com"
+    },
+    "record-keeping": {
+      "stack": "record-keeper",
+      "port": 8080,
+      "database": "record_keeper",
+      "domain": "vault.cdrift.com"
+    },
+    "claude-dash": {
+      "stack": "claude-dash",
+      "port": 3000,
+      "database": "claude_dash",
+      "domain": null
+    },
+    "vidarchive": {
+      "stack": "vidarchive",
+      "port": 5000,
+      "database": null,
+      "domain": "vidarchive.cdrift.com"
+    },
+    "tolgee": {
+      "stack": "tolgee",
+      "port": 8080,
+      "database": "tolgee",
+      "domain": "tolgee.cdrift.com"
+    }
+  },
+  "infra_patterns": [
+    "docker-compose*.yml",
+    "docker-compose*.yaml",
+    ".forgejo/workflows/*.yml",
+    "Dockerfile",
+    "Dockerfile.*"
+  ]
+}

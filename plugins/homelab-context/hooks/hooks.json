@@ -7,7 +7,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/block-secrets-edit.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/run-with-logging.sh block-secrets-edit.sh",
+            "timeout": 5
           }
         ]
       }
@@ -18,11 +19,24 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/validate-compose.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/run-with-logging.sh validate-compose.sh",
+            "timeout": 10
           },
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/remind-plugin-audit.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/run-with-logging.sh remind-plugin-audit.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/run-with-logging.sh detect-project-context.sh",
+            "timeout": 5
           }
         ]
       }

@@ -1,7 +1,7 @@
 {
   "name": "homelab-context",
   "description": "Homelab infrastructure knowledge, deployment commands, and architecture guidance for cross-project use",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "author": {
     "name": "Chris"
   }

@@ -64,6 +64,69 @@ Flag: new deployment patterns (e.g., new auth methods, new storage patterns) not
 
 Flag: known keychain entries not documented in the plugin.
 
+### 7. Cross-Project Audit
+
+**Source of truth:** `plugins/homelab-context/hooks/project-map.json` — all entries under `"projects"`
+
+For each project key in `project-map.json`, check whether the project directory exists locally. Search these parent directories in order:
+- `/Volumes/d50-970p-1t/projects/<project-name>/`
+- `~/projects/<project-name>/`
+
+For each project directory that exists, perform the following checks:
+
+**Port check:**
+- Find all `docker-compose*.yml` and `docker-compose*.yaml` files in the project directory (use Glob).
+- In each file, look for `ports:` mappings. Extract the host-side port (the value before `:` in a `"HOST:CONTAINER"` mapping, or the sole value for container-only mappings).
+- Compare against the `"port"` value in `project-map.json` for that project.
+- Flag as WARNING if no port mapping matches the documented port (the container port in a HOST:CONTAINER pair is also acceptable as a match).
+
+**Database check:**
+- In each docker-compose file, look for `DATABASE_URL`, `DB_NAME`, `POSTGRES_DB`, or similar environment variable patterns that name a database.
+- Extract the database name from the value (e.g., from `postgres://user:pass@host/dbname`, extract `dbname`).
+- Compare against the `"database"` value in `project-map.json` for that project.
+- If `"database"` is `null` in `project-map.json`, verify no database env var is present (or note it as INFO if one appears).
+- Flag as WARNING if the database name does not match.
+
+**CI pattern check:**
+- Check whether `.forgejo/workflows/` exists in the project directory.
+- If it does, list the workflow files and read each one. Look for patterns not covered in `plugins/homelab-context/skills/homelab-infra/references/forgejo-ci.md`:
+  - Non-standard trigger events (anything other than `push` and `pull_request`)
+  - Use of external services (e.g., `services:` block with images not listed in forgejo-ci.md)
+  - Deployment targets other than N100 (e.g., SSH to a different IP)
+- Flag as INFO for any CI patterns not documented in forgejo-ci.md.
+
+For projects whose directory is not found in either search location, report as INFO (not an error — the project may live on a remote host only).
+
+### 8. Self-Consistency
+
+Check that the plugin's own documentation is internally consistent. These checks do not require reading live infrastructure — only plugin files.
+
+**Compose directories vs stacks.md:**
+- Use Glob to list all `docker-compose/**/docker-compose.yml` files in the homelab repo (relative to the repo root, e.g., `~/homelab/`).
+- For each compose directory found, check that `plugins/homelab-context/skills/homelab-infra/references/stacks.md` contains a section for that stack.
+- For each stack section in `stacks.md`, check that a corresponding compose directory exists.
+- Flag as ERROR for any mismatch in either direction.
+
+**CLAUDE.md domains vs stacks.md Caddy route table:**
+- Read the domains table from `plugins/homelab-context/CLAUDE.md` (the `## Domains` section).
+- Read the Caddy Route Table from `plugins/homelab-context/skills/homelab-infra/references/stacks.md` (the `## Caddy Route Table` section).
+- Every domain in CLAUDE.md (except `pointing.cdrift.com`, which is Cloudflare Pages and has no Caddy route) should have a matching row in the Caddy Route Table.
+- Every domain in the Caddy Route Table should appear in CLAUDE.md.
+- Flag as ERROR for any domain present in one but absent from the other.
+
+**project-map.json vs stacks.md:**
+- Read all project keys from `plugins/homelab-context/hooks/project-map.json` (the `"projects"` object).
+- For each project, confirm that a stack section exists in `stacks.md` matching the `"stack"` value for that project entry.
+- Flag as ERROR for any project in `project-map.json` whose stack is not documented in `stacks.md`.
+- Flag as WARNING for any stack in `stacks.md` that serves an application (i.e., has a domain or database) but is absent from `project-map.json`. Infra stacks (shared, auth, ingress, forgejo, homepage, monitoring) are exempt from this check.
+
+**Database count cross-check:**
+- Count the databases listed in the `## Database Table` section of `stacks.md`.
+- Count the databases listed in the `db-init creates:` line in the Shared Stack section of `stacks.md`.
+- Count the databases mentioned in the `## Shared Services` section of `plugins/homelab-context/CLAUDE.md` (the parenthetical after "Postgres 16:").
+- All three counts must match.
+- Flag as ERROR if any count differs from the others.
+
 ## Output Format
 
 Present findings as a drift report:
