@@ -1,6 +1,6 @@
 ---
 name: bedrock-auth
-version: "0.2.0"
+version: "0.3.0"
 description: >-
   This skill should be used when the user needs to authenticate to AWS Bedrock
   using OIDC SSO, get Bedrock credentials via Cognito Identity Pool, call the
@@ -74,7 +74,7 @@ config = AuthConfig.from_json("config.json")
 client = get_bedrock_client(config)
 
 response = client.converse(
-    modelId="us.anthropic.claude-sonnet-4-20250514-v1:0",
+    modelId="us.anthropic.claude-sonnet-4-6",
     messages=[{"role": "user", "content": [{"text": "Hello"}]}],
 )
 print(response["output"]["message"]["content"][0]["text"])
@@ -91,7 +91,7 @@ auth = BedrockAuth(config)
 # Call repeatedly — credentials auto-refresh when expired
 client = auth.get_client()
 response = client.converse(
-    modelId="us.anthropic.claude-sonnet-4-20250514-v1:0",
+    modelId="us.anthropic.claude-sonnet-4-6",
     messages=[{"role": "user", "content": [{"text": "Hello"}]}],
 )
 
@@ -138,11 +138,13 @@ client = get_bedrock_client(config)
 
 ## Available Models
 
-Use these model IDs with `client.converse()`:
+Use these model IDs with `client.converse()` (prefix with `us.` for cross-region inference):
 
-- `us.anthropic.claude-sonnet-4-20250514-v1:0` — Claude Sonnet (recommended default)
-- `us.anthropic.claude-haiku-4-5-20251001-v1:0` — Claude Haiku (faster, cheaper)
-- `us.anthropic.claude-opus-4-20250514-v1:0` — Claude Opus (most capable)
+- `us.anthropic.claude-sonnet-4-6` — Claude Sonnet 4.6 (recommended default)
+- `us.anthropic.claude-haiku-4-5-20251001-v1:0` — Claude Haiku 4.5 (faster, cheaper)
+- `us.anthropic.claude-opus-4-6-v1` — Claude Opus 4.6 (most capable)
+- `us.anthropic.claude-sonnet-4-5-20250929-v1:0` — Claude Sonnet 4.5
+- `us.anthropic.claude-opus-4-5-20251101-v1:0` — Claude Opus 4.5
 
 ## Error Handling
 

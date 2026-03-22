@@ -1,0 +1,6 @@
+{
+  "name": "project-awareness",
+  "description": "Auto-generates project catalog on session start for cross-project awareness",
+  "version": "1.0.0",
+  "author": { "name": "Chris" }
+}

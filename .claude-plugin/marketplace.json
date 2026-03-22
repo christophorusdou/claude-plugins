@@ -39,7 +39,7 @@
     {
       "name": "bedrock-oidc-auth",
       "description": "Guides Claude Code sessions on authenticating to AWS Bedrock via OIDC SSO and calling the Claude API programmatically",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "author": {
         "name": "Chris"
       },
