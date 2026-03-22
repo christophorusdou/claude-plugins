@@ -22,13 +22,13 @@ import { preloadModel } from "./embeddings.js";
 
 const server = new McpServer({
   name: "memory",
-  version: "1.0.0",
+  version: "1.2.0",
 });
 
 // --- memory_store ---
 server.tool(
   "memory_store",
-  "Store a new memory. Auto-detects category and project scope. When project is omitted, auto-detects from cwd. Pass project: null explicitly for global scope. Deduplicates within same scope.",
+  "Store a knowledge entry in the cross-project archive. For patterns, gotchas, debug insights, decisions, or facts that benefit from semantic search. NOT for user preferences or session feedback (use built-in memory for those). Auto-detects project scope. Deduplicates within same scope.",
   {
     content: z.string().describe("The memory text to store"),
     category: z
@@ -120,7 +120,7 @@ server.tool(
         content: [
           {
             type: "text" as const,
-            text: `Near-duplicate found (similarity: ${result.similarity?.toFixed(3)}). Existing memory ID: ${result.existing_id}. Use memory_update to modify the existing memory if needed.`,
+            text: `Near-duplicate found (similarity: ${result.similarity?.toFixed(3)}). Existing memory ID: ${result.existing_id}. Use memory_manage with action: "update" to modify the existing entry if needed.`,
           },
         ],
       };
@@ -138,7 +138,7 @@ server.tool(
 // --- memory_recall ---
 server.tool(
   "memory_recall",
-  "Search memories using semantic + keyword hybrid search. When project is omitted, auto-detects from cwd and runs two-pass search (project + global) with scope boosting. Pass null for global-only.",
+  "Search the knowledge archive using semantic + keyword hybrid search. Use as a fallback when built-in memory doesn't have relevant context, or for cross-project search. If results contradict built-in MEMORY.md, built-in is authoritative. Auto-detects project from cwd for two-pass search (project + global).",
   {
     query: z.string().describe("Search query (natural language)"),
     project: z
@@ -211,415 +211,172 @@ server.tool(
   }
 );
 
-// --- memory_update ---
+// --- memory_manage ---
 server.tool(
-  "memory_update",
-  "Update an existing memory's content, category, project, tags, or triggers.",
+  "memory_manage",
+  "Manage the knowledge archive. Actions: update, delete, upvote, downvote, list, stats, cleanup, audit, consolidate, sync, import.",
   {
-    id: z.string().describe("Memory ID to update"),
-    content: z.string().optional().describe("New content"),
-    category: z
+    action: z
       .enum([
-        "pattern",
-        "gotcha",
-        "preference",
-        "decision",
-        "fact",
-        "debug-insight",
+        "update",
+        "delete",
+        "upvote",
+        "downvote",
+        "list",
+        "stats",
+        "cleanup",
+        "audit",
+        "consolidate",
+        "sync",
+        "import",
       ])
-      .optional(),
-    project: z.string().nullable().optional(),
-    tags: z.array(z.string()).optional(),
-    triggers: z.array(z.string()).optional(),
-    version_context: z
+      .describe("Operation to perform"),
+    id: z.string().optional().describe("Entry ID (for update/delete/upvote/downvote)"),
+    content: z.string().optional().describe("New content (for update)"),
+    category: z
+      .enum(["pattern", "gotcha", "preference", "decision", "fact", "debug-insight"])
+      .optional()
+      .describe("Category filter (for list) or new category (for update)"),
+    project: z
       .string()
       .nullable()
       .optional()
-      .describe("Version context for staleness tracking"),
+      .describe("Project filter (for list/consolidate) or new project (for update)"),
+    tags: z.array(z.string()).optional().describe("New tags (for update)"),
+    triggers: z.array(z.string()).optional().describe("New triggers (for update)"),
+    version_context: z.string().nullable().optional().describe("Version context (for update)"),
     valid_until: z
       .string()
-      .regex(/^\d{4}-\d{2}-\d{2}/, "Must be an ISO date (YYYY-MM-DD)")
+      .regex(/^\d{4}-\d{2}-\d{2}/, "Must be ISO date YYYY-MM-DD")
       .nullable()
       .optional()
-      .describe("ISO date when this memory expires"),
+      .describe("Expiry date (for update)"),
+    detail: z.string().optional().describe("Context for vote (upvote/downvote)"),
+    min_score: z.number().optional().describe("Minimum score (for list/cleanup)"),
+    limit: z.number().optional().describe("Max results"),
+    offset: z.number().optional().describe("Pagination offset (for list)"),
+    include_expired: z.boolean().optional().describe("Include expired (for audit, default true)"),
+    days_warning: z.number().optional().describe("Days ahead to warn (for audit, default 30)"),
+    threshold: z.number().min(0.5).max(0.84).optional().describe("Similarity threshold (for consolidate, default 0.70)"),
+    operation: z.enum(["push", "pull", "export", "rebuild"]).optional().describe("Sync operation (for sync)"),
+    file_path: z.string().optional().describe("File path (for import)"),
   },
   async (args) => {
-    const result = await updateMemory(args);
-    if (!result) {
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Memory ${args.id} not found.`,
-          },
-        ],
-      };
+    const text = (s: string) => ({ content: [{ type: "text" as const, text: s }] });
+
+    switch (args.action) {
+      case "update": {
+        if (!args.id) return text("Error: id is required for update");
+        const result = await updateMemory({
+          id: args.id,
+          content: args.content,
+          category: args.category,
+          project: args.project,
+          tags: args.tags,
+          triggers: args.triggers,
+          version_context: args.version_context,
+          valid_until: args.valid_until,
+        });
+        if (!result) return text(`Entry ${args.id} not found.`);
+        return text(`Updated ${result.id}: ${result.content.slice(0, 100)}...`);
+      }
+
+      case "delete": {
+        if (!args.id) return text("Error: id is required for delete");
+        const deleted = await deleteMemory(args.id);
+        return text(deleted ? `Deleted ${args.id}` : `Entry ${args.id} not found`);
+      }
+
+      case "upvote": {
+        if (!args.id) return text("Error: id is required for upvote");
+        const result = upvoteMemory(args.id, args.detail);
+        if (!result) return text(`Entry ${args.id} not found.`);
+        return text(`Upvoted. Score: ${result.new_score}, Confidence: ${result.new_confidence.toFixed(2)}`);
+      }
+
+      case "downvote": {
+        if (!args.id) return text("Error: id is required for downvote");
+        const result = downvoteMemory(args.id, args.detail);
+        if (!result) return text(`Entry ${args.id} not found.`);
+        return text(`Downvoted. Score: ${result.new_score}, Confidence: ${result.new_confidence.toFixed(2)}`);
+      }
+
+      case "list": {
+        const memories = listMemories({
+          project: args.project,
+          category: args.category,
+          min_score: args.min_score,
+          limit: args.limit,
+          offset: args.offset,
+        });
+        if (memories.length === 0) return text("No entries found matching filters.");
+        const formatted = memories.map((m) => {
+          const meta = [m.category, m.project ? `project:${m.project}` : "global", `score:${m.score}`, `conf:${m.confidence.toFixed(2)}`].join(" | ");
+          return `[${m.id}] (${meta})\n  ${m.content}`;
+        });
+        return text(`${memories.length} entries:\n\n${formatted.join("\n\n")}`);
+      }
+
+      case "stats": {
+        const stats = getStats();
+        return text(JSON.stringify(stats, null, 2));
+      }
+
+      case "cleanup": {
+        const candidates = getCleanupCandidates();
+        if (candidates.length === 0) return text("No cleanup candidates found. All entries are healthy!");
+        const formatted = candidates.map((c) => `[${c.memory.id}] ${c.reason}\n  ${c.memory.content.slice(0, 100)}`);
+        return text(`${candidates.length} cleanup candidates:\n\n${formatted.join("\n\n")}\n\nUse memory_manage action:delete to remove unwanted entries.`);
+      }
+
+      case "audit": {
+        const candidates = auditMemories({
+          include_expired: args.include_expired,
+          days_warning: args.days_warning,
+          limit: args.limit,
+        });
+        if (candidates.length === 0) return text("No stale or expiring entries found. All entries are fresh!");
+        const formatted = candidates.map((c) => {
+          const m = c.memory;
+          const meta = [m.category, m.project ? `project:${m.project}` : "global", m.version_context ? `ctx:${m.version_context}` : null, m.valid_until ? `expires:${m.valid_until}` : null].filter(Boolean).join(" | ");
+          return `[${m.id}] ${c.reason}\n  (${meta})\n  ${m.content.slice(0, 120)}`;
+        });
+        return text(`${candidates.length} entries need review:\n\n${formatted.join("\n\n")}\n\nUse memory_manage with action:update/downvote/delete to resolve.`);
+      }
+
+      case "consolidate": {
+        const groups = await findConsolidationGroups({
+          project: args.project,
+          threshold: args.threshold,
+          limit: args.limit,
+        });
+        if (groups.length === 0) return text("No consolidation candidates found. Entries are well-separated!");
+        const formatted = groups.map((g, gi) => {
+          const lines = g.members.map((m, mi) => {
+            const label = mi === 0 ? ">>> KEEP" : "    DEL ";
+            const meta = [m.category, m.project ? `project:${m.project}` : "global", `score:${m.score}`, `uses:${m.use_count}`].join(" | ");
+            return `  ${label} [${m.id}] (${meta})\n           ${m.content.slice(0, 120)}`;
+          });
+          return `Group ${gi + 1} (${g.members.length} entries, avg similarity: ${g.avg_similarity.toFixed(3)}):\n${lines.join("\n")}`;
+        });
+        return text(`${groups.length} consolidation groups found:\n\n${formatted.join("\n\n")}\n\nTo merge: update winner with consolidated content, delete the rest.`);
+      }
+
+      case "sync": {
+        if (!args.operation) return text("Error: operation is required for sync (push/pull/export/rebuild)");
+        const result = await syncMemories(args.operation);
+        return text(`[${result.operation}] ${result.message}`);
+      }
+
+      case "import": {
+        if (!args.file_path) return text("Error: file_path is required for import");
+        const result = await importMemoryMd(args.file_path, args.project ?? undefined);
+        return text(`Imported from ${args.file_path}:\n  Total entries: ${result.total_entries}\n  Created: ${result.created}\n  Duplicates: ${result.duplicates}\n  Near-duplicates: ${result.near_duplicates}`);
+      }
+
+      default:
+        return text(`Unknown action: ${args.action}`);
     }
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Updated memory ${result.id}: ${result.content.slice(0, 100)}...`,
-        },
-      ],
-    };
-  }
-);
-
-// --- memory_delete ---
-server.tool(
-  "memory_delete",
-  "Delete a memory by ID.",
-  {
-    id: z.string().describe("Memory ID to delete"),
-  },
-  async (args) => {
-    const deleted = await deleteMemory(args.id);
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: deleted
-            ? `Deleted memory ${args.id}`
-            : `Memory ${args.id} not found`,
-        },
-      ],
-    };
-  }
-);
-
-// --- memory_upvote ---
-server.tool(
-  "memory_upvote",
-  "Upvote a memory (+1 score, +0.05 confidence). Use when a memory was helpful.",
-  {
-    id: z.string().describe("Memory ID to upvote"),
-    detail: z.string().optional().describe("Context for the upvote"),
-  },
-  async (args) => {
-    const result = upvoteMemory(args.id, args.detail);
-    if (!result) {
-      return {
-        content: [
-          { type: "text" as const, text: `Memory ${args.id} not found.` },
-        ],
-      };
-    }
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Upvoted. Score: ${result.new_score}, Confidence: ${result.new_confidence.toFixed(2)}`,
-        },
-      ],
-    };
-  }
-);
-
-// --- memory_downvote ---
-server.tool(
-  "memory_downvote",
-  "Downvote a memory (-1 score, -0.05 confidence). Use when a memory was incorrect or unhelpful.",
-  {
-    id: z.string().describe("Memory ID to downvote"),
-    detail: z.string().optional().describe("Context for the downvote"),
-  },
-  async (args) => {
-    const result = downvoteMemory(args.id, args.detail);
-    if (!result) {
-      return {
-        content: [
-          { type: "text" as const, text: `Memory ${args.id} not found.` },
-        ],
-      };
-    }
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Downvoted. Score: ${result.new_score}, Confidence: ${result.new_confidence.toFixed(2)}`,
-        },
-      ],
-    };
-  }
-);
-
-// --- memory_list ---
-server.tool(
-  "memory_list",
-  "List memories with optional filters. Sorted by score descending.",
-  {
-    project: z.string().nullable().optional().describe("Filter by project"),
-    category: z
-      .enum([
-        "pattern",
-        "gotcha",
-        "preference",
-        "decision",
-        "fact",
-        "debug-insight",
-      ])
-      .optional(),
-    min_score: z.number().optional(),
-    limit: z.number().optional().describe("Max results (default 50)"),
-    offset: z.number().optional().describe("Pagination offset"),
-  },
-  async (args) => {
-    const memories = listMemories({
-      project: args.project,
-      category: args.category,
-      min_score: args.min_score,
-      limit: args.limit,
-      offset: args.offset,
-    });
-
-    if (memories.length === 0) {
-      return {
-        content: [
-          { type: "text" as const, text: "No memories found matching filters." },
-        ],
-      };
-    }
-
-    const formatted = memories.map((m) => {
-      const meta = [
-        m.category,
-        m.project ? `project:${m.project}` : "global",
-        `score:${m.score}`,
-        `conf:${m.confidence.toFixed(2)}`,
-      ].join(" | ");
-      return `[${m.id}] (${meta})\n  ${m.content}`;
-    });
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `${memories.length} memories:\n\n${formatted.join("\n\n")}`,
-        },
-      ],
-    };
-  }
-);
-
-// --- memory_stats ---
-server.tool(
-  "memory_stats",
-  "Get statistics: counts by project, category, source, and score distribution.",
-  {},
-  async () => {
-    const stats = getStats();
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: JSON.stringify(stats, null, 2),
-        },
-      ],
-    };
-  }
-);
-
-// --- memory_cleanup ---
-server.tool(
-  "memory_cleanup",
-  "Suggest low-value memories for deletion (score < -1, unused 90+ days, low confidence auto-captures).",
-  {},
-  async () => {
-    const candidates = getCleanupCandidates();
-    if (candidates.length === 0) {
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: "No cleanup candidates found. All memories are healthy!",
-          },
-        ],
-      };
-    }
-
-    const formatted = candidates.map((c) => {
-      return `[${c.memory.id}] ${c.reason}\n  ${c.memory.content.slice(0, 100)}`;
-    });
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `${candidates.length} cleanup candidates:\n\n${formatted.join("\n\n")}\n\nUse memory_delete to remove unwanted entries.`,
-        },
-      ],
-    };
-  }
-);
-
-// --- memory_audit ---
-server.tool(
-  "memory_audit",
-  "Audit memories for staleness: find expired, near-expiry, and low-confidence memories that may need review or deletion.",
-  {
-    include_expired: z
-      .boolean()
-      .optional()
-      .describe("Include already-expired memories (default true)"),
-    days_warning: z
-      .number()
-      .optional()
-      .describe("Days ahead to warn about upcoming expiry (default 30)"),
-    limit: z
-      .number()
-      .optional()
-      .describe("Max results (default 50)"),
-  },
-  async (args) => {
-    const candidates = auditMemories({
-      include_expired: args.include_expired,
-      days_warning: args.days_warning,
-      limit: args.limit,
-    });
-
-    if (candidates.length === 0) {
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: "No stale or expiring memories found. All memories are fresh!",
-          },
-        ],
-      };
-    }
-
-    const formatted = candidates.map((c) => {
-      const m = c.memory;
-      const meta = [
-        m.category,
-        m.project ? `project:${m.project}` : "global",
-        m.version_context ? `ctx:${m.version_context}` : null,
-        m.valid_until ? `expires:${m.valid_until}` : null,
-      ]
-        .filter(Boolean)
-        .join(" | ");
-      return `[${m.id}] ${c.reason}\n  (${meta})\n  ${m.content.slice(0, 120)}`;
-    });
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `${candidates.length} memories need review:\n\n${formatted.join("\n\n")}\n\nUse memory_update to fix valid_until, memory_downvote to mark stale, or memory_delete to remove.`,
-        },
-      ],
-    };
-  }
-);
-
-// --- memory_consolidate ---
-server.tool(
-  "memory_consolidate",
-  "Find groups of similar memories that could be merged. Returns suggested winner + candidates for deletion. Use memory_update on the winner with consolidated content, then memory_delete the rest.",
-  {
-    project: z
-      .string()
-      .nullable()
-      .optional()
-      .describe("Filter by project. Omit for all, null for global only."),
-    threshold: z
-      .number()
-      .min(0.5)
-      .max(0.84)
-      .optional()
-      .describe("Similarity threshold (default 0.70, max 0.84 — below dedup threshold)"),
-    limit: z
-      .number()
-      .optional()
-      .describe("Max groups to return (default 10)"),
-  },
-  async (args) => {
-    const groups = await findConsolidationGroups({
-      project: args.project,
-      threshold: args.threshold,
-      limit: args.limit,
-    });
-
-    if (groups.length === 0) {
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: "No consolidation candidates found. Memories are well-separated!",
-          },
-        ],
-      };
-    }
-
-    const formatted = groups.map((g, gi) => {
-      const lines = g.members.map((m, mi) => {
-        const label = mi === 0 ? ">>> KEEP" : "    DEL ";
-        const meta = [
-          m.category,
-          m.project ? `project:${m.project}` : "global",
-          `score:${m.score}`,
-          `uses:${m.use_count}`,
-        ].join(" | ");
-        return `  ${label} [${m.id}] (${meta})\n           ${m.content.slice(0, 120)}`;
-      });
-      return `Group ${gi + 1} (${g.members.length} memories, avg similarity: ${g.avg_similarity.toFixed(3)}):\n${lines.join("\n")}`;
-    });
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `${groups.length} consolidation groups found:\n\n${formatted.join("\n\n")}\n\nTo merge: memory_update winner with consolidated content, memory_delete the rest.`,
-        },
-      ],
-    };
-  }
-);
-
-// --- memory_sync ---
-server.tool(
-  "memory_sync",
-  "Sync memories via git. Operations: push (export JSONL + git push), pull (git pull + rebuild DB), export (JSONL only), rebuild (DB from JSONL).",
-  {
-    operation: z
-      .enum(["push", "pull", "export", "rebuild"])
-      .describe("Sync operation to perform"),
-  },
-  async (args) => {
-    const result = await syncMemories(args.operation);
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `[${result.operation}] ${result.message}`,
-        },
-      ],
-    };
-  }
-);
-
-// --- memory_import ---
-server.tool(
-  "memory_import",
-  "Import memories from a MEMORY.md file. Splits by ## headers and bullet points into individual entries.",
-  {
-    file_path: z.string().describe("Absolute path to the MEMORY.md file"),
-    project: z
-      .string()
-      .optional()
-      .describe("Project name (inferred from path if omitted)"),
-  },
-  async (args) => {
-    const result = await importMemoryMd(args.file_path, args.project);
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Imported from ${args.file_path}:\n  Total entries: ${result.total_entries}\n  Created: ${result.created}\n  Duplicates: ${result.duplicates}\n  Near-duplicates: ${result.near_duplicates}`,
-        },
-      ],
-    };
   }
 );
 

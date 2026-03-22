@@ -1,6 +1,16 @@
 # Memory Plugin
 
-Centralized cross-project memory system for Claude Code. Stores facts, preferences, patterns, decisions, and debug insights with semantic search and automatic project scoping.
+Cross-project knowledge archive for Claude Code. Acts as a searchable data lake and fallback for built-in memory. Stores patterns, gotchas, debug insights, decisions, and facts with semantic search and automatic project scoping.
+
+## Role & Authority
+
+This plugin is a **data lake fallback**, not a replacement for Claude Code's built-in memory (MEMORY.md files).
+
+- **Built-in memory is always authoritative** — if plugin data contradicts built-in, built-in wins
+- **Built-in memory handles**: user preferences, session feedback, workflow corrections, project context
+- **This plugin handles**: cross-project search, durable patterns/gotchas/insights, semantic retrieval
+
+The plugin is purely on-demand — no SessionStart injection. It only surfaces when `memory_recall` is explicitly called.
 
 ## Installation
 
@@ -11,13 +21,13 @@ Data stored in `~/.claude-memory/`:
 - `search-index.json` — Orama hybrid search index
 - `memories.jsonl` — Portable sync format
 
-## Tools
+## Tools (3)
 
 ### memory_store
-Store a new memory. Auto-detects category and project scope. Content is limited to 5,000 characters.
+Store a new knowledge entry. For patterns, gotchas, debug insights, decisions, or facts. NOT for user preferences or session feedback. Content is limited to 5,000 characters.
 
 ```
-content: string           — The memory text (max 5000 chars)
+content: string           — The entry text (max 5000 chars)
 category?: string         — pattern | gotcha | preference | decision | fact | debug-insight
 project?: string          — Omit to auto-detect, null for global
 tags?: string[]           — Filtering tags
@@ -25,49 +35,36 @@ triggers?: string[]       — Keyword/regex patterns for signal-based activation
 source?: string           — manual | auto-captured
 confidence?: number       — 0-1
 version_context?: string  — Version info for staleness tracking (e.g. "React 18.2")
-valid_until?: string      — ISO date when this memory expires (e.g. "2026-06-01")
+valid_until?: string      — ISO date when this entry expires (e.g. "2026-06-01")
 ```
 
 ### memory_recall
-Semantic + keyword hybrid search with scope-aware ranking.
+Search the knowledge archive using semantic + keyword hybrid search. Use as a fallback when built-in memory doesn't have relevant context, or for cross-project search.
 
 ```
 query: string       — Natural language search
 project?: string    — Omit for two-pass (project + global), null for global only
 category?: string   — Filter by category
 limit?: number      — Max results (default 10)
-min_score?: number  — Minimum memory score
+min_score?: number  — Minimum entry score
 ```
 
-### memory_update
-Update content, category, project, tags, or triggers of an existing memory.
+### memory_manage
+All other operations via the `action` parameter:
 
-### memory_delete
-Delete a memory by ID.
-
-### memory_upvote / memory_downvote
-Vote on memory quality. Affects ranking in future recalls.
-
-### memory_list
-List memories with optional filters, sorted by score.
-
-### memory_stats
-Counts by project, category, source, and score distribution.
-
-### memory_cleanup
-Suggest low-value memories for deletion.
-
-### memory_audit
-Find expired, near-expiry, and low-confidence memories that need review.
-
-### memory_consolidate
-Find groups of similar memories that could be merged. Returns suggested winner + candidates for deletion.
-
-### memory_sync
-Git-based sync: push, pull, export (JSONL), rebuild (DB from JSONL).
-
-### memory_import
-Import from a MEMORY.md file, splitting by headers and bullet points.
+| Action | Description |
+|--------|-------------|
+| `update` | Edit content, category, tags, or triggers of an existing entry |
+| `delete` | Remove an entry by ID |
+| `upvote` | +1 score, +0.05 confidence (entry was helpful) |
+| `downvote` | -1 score, -0.05 confidence (entry was wrong/stale) |
+| `list` | List entries with optional filters, sorted by score |
+| `stats` | Counts by project, category, source, and score distribution |
+| `cleanup` | Suggest low-value entries for deletion |
+| `audit` | Find expired, near-expiry, and low-confidence entries |
+| `consolidate` | Find groups of similar entries that could be merged |
+| `sync` | Git-based sync: push, pull, export (JSONL), rebuild (DB from JSONL) |
+| `import` | Import from a MEMORY.md file, splitting by headers and bullet points |
 
 ## Project Scoping
 
@@ -124,7 +121,7 @@ Two-layer dedup on store:
 ### Data integrity
 - **Write mutex**: Search index saves are serialized via promise chain to prevent corruption from concurrent tool calls
 - **Shutdown save**: Search index is persisted on SIGINT/SIGTERM before process exit
-- **Index rebuild**: `memory_sync rebuild` clears the existing index before rebuilding to prevent ghost entries
+- **Index rebuild**: `memory_manage` with `action: "sync", operation: "rebuild"` clears the existing index before rebuilding to prevent ghost entries
 - **FK cascade**: `memory_events` has `ON DELETE CASCADE` to `memories`, preventing orphaned events
 
 ### Schema
