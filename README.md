@@ -51,6 +51,12 @@ plugins/<name>/
 - **Agent-based** (ai-efficiency-advisor, homelab-context) — specialized subagents for specific tasks
 - **MCP-based** (memory) — full MCP server with tools, backed by a database
 
+## Related Repos
+
+| Repo | Relationship |
+|------|-------------|
+| [homelab](https://git.cdrift.com/chris/homelab) | Infrastructure that homelab-context documents (compose files, Caddyfile, deploy scripts). Weekly CI drift check compares infra state against plugin docs. |
+
 ## Setup
 
 ### 1. Register the marketplace

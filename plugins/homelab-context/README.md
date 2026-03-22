@@ -19,6 +19,7 @@ claude plugin add --from christophorusdou/claude-plugins --name homelab-context
 - `/backup-truenas` — Run TrueNAS backup with optional WoL wake and auto-shutdown
 - `/new-service <name>` — Scaffold a new service (compose, Caddy, tunnel, database)
 - `/audit-plugin` — Check plugin docs against live infrastructure for drift
+- `/verify-live` — SSH to N100 and compare live state against docs
 
 ### Agent
 - **infra-reviewer** — Reviews compose files, Caddyfile, and workflows for common homelab mistakes
@@ -26,7 +27,8 @@ claude plugin add --from christophorusdou/claude-plugins --name homelab-context
 ### Hooks
 - **block-secrets-edit** (PreToolUse) — Blocks edits to `.env`, credentials, and secrets files
 - **validate-compose** (PostToolUse) — Validates Docker Compose YAML syntax after edits
-- **remind-plugin-audit** (PostToolUse) — Reminds to run `/audit-plugin` when infra files change
+- **remind-plugin-audit** (PostToolUse) — Reminds to run `/audit-plugin` when infra files change (cross-project aware)
+- **detect-project-context** (SessionStart) — Prints context reminder in known homelab projects
 
 ## Infrastructure Overview
 
@@ -35,3 +37,7 @@ claude plugin add --from christophorusdou/claude-plugins --name homelab-context
 - **TrueNAS** (on-demand WoL): 21TB RAIDZ1, backups, media storage
 - **L40S Remote** (shared GPU): NVIDIA L40S 48GB, Ollama, TTS/STT, ML training
 - **Tailscale**: Subnet router on N100 for full LAN access from anywhere
+
+## Related Repos
+
+- **[homelab](https://git.cdrift.com/chris/homelab)** — Infrastructure source of truth (Docker Compose files, Caddyfile, deploy scripts, CI workflows). This plugin documents that infrastructure. A weekly CI drift check in the homelab repo compares infra state against these plugin docs.
