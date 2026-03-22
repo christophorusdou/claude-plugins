@@ -2,13 +2,11 @@
 
 Claude Code plugin for AI tool efficiency coaching.
 
-## Related Repo
+## Related Repos
 
-Data, docs, and check-in history live in a separate repo:
-`/Volumes/d50-970p-1t/projects/ai-efficiency/`
-
-This plugin is the **brain** (commands, agents, skills, hooks).
-That repo is the **memory** (data, docs, action items, evolution log).
+| Repo | Local Path | Relationship |
+|------|-----------|-------------|
+| [ai-efficiency](https://git.cdrift.com/chris/ai-efficiency) | `~/projects/ai-efficiency` | Data repo — check-in history, action items, evolution log. This plugin is the **brain** (commands, agents, skills); that repo is the **memory** (data, docs). |
 
 ## Structure
 

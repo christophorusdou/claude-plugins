@@ -20,7 +20,7 @@ Claude Code's parent-directory CLAUDE.md inheritance makes this catalog automati
 | Projects directory | `/Volumes/d50-970p-1t/projects` | `scan-projects.sh` line 4 |
 | Cache TTL | 300 seconds (5 min) | `scan-projects.sh` line 6 |
 | Hook trigger | `startup` only | `hooks/hooks.json` |
-| Hook timeout | 5000ms | `hooks/hooks.json` |
+| Hook timeout | 10s | `hooks/hooks.json` |
 
 The script skips regeneration if the output file is less than 5 minutes old. This prevents redundant scans on rapid session starts while ensuring fresh data for new sessions.
 
@@ -40,6 +40,13 @@ The output CLAUDE.md (~100 lines) contains:
 - **YAML list item requirement** — port extraction requires `- ` prefix to avoid matching URLs or model names containing `number:number` patterns.
 - **Pipe sanitization** — `|` in descriptions is replaced with `-` to prevent markdown table breakage.
 - **Subdirectory tsconfig detection** — checks `web/`, `frontend/`, `client/`, `app/` for TypeScript in monorepos.
+
+## Related Repos
+
+| Repo | Local Path | Relationship |
+|------|-----------|-------------|
+| All repos in `~/projects/` | `~/projects/` | Scanned on session start to generate the project catalog |
+| Output: `~/projects/CLAUDE.md` | — | Generated catalog file (auto-inherited by all child projects via Claude Code) |
 
 ## Performance
 

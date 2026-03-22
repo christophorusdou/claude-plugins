@@ -53,9 +53,12 @@ plugins/<name>/
 
 ## Related Repos
 
-| Repo | Relationship |
-|------|-------------|
-| [homelab](https://git.cdrift.com/chris/homelab) | Infrastructure that homelab-context documents (compose files, Caddyfile, deploy scripts). Weekly CI drift check compares infra state against plugin docs. |
+| Repo | Local Path | Used By |
+|------|-----------|---------|
+| [homelab](https://git.cdrift.com/chris/homelab) | `~/projects/homelab` | homelab-context — infra source of truth (compose, Caddyfile, deploy scripts) |
+| [ai-efficiency](https://git.cdrift.com/chris/ai-efficiency) | `~/projects/ai-efficiency` | ai-efficiency-advisor — check-in data, session snapshots |
+| [future](https://git.cdrift.com/chris/future) | `~/projects/future` | career-evolution — research sessions, career decisions, skill inventory |
+| [bedrock-oidc-auth](https://git.cdrift.com/chris/bedrock-oidc-auth) | `~/projects/bedrock-oidc-auth` | bedrock-oidc-auth — Python library this plugin documents |
 
 ## Setup
 

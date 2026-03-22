@@ -40,4 +40,6 @@ claude plugin add --from christophorusdou/claude-plugins --name homelab-context
 
 ## Related Repos
 
-- **[homelab](https://git.cdrift.com/chris/homelab)** — Infrastructure source of truth (Docker Compose files, Caddyfile, deploy scripts, CI workflows). This plugin documents that infrastructure. A weekly CI drift check in the homelab repo compares infra state against these plugin docs.
+| Repo | Local Path | Relationship |
+|------|-----------|-------------|
+| [homelab](https://git.cdrift.com/chris/homelab) | `~/projects/homelab` | Infrastructure source of truth (Docker Compose files, Caddyfile, deploy scripts). Weekly CI drift check compares infra state against plugin docs. |
