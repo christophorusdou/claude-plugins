@@ -28,7 +28,7 @@ if [[ -f "$MARKER" ]]; then
 fi
 
 # Count tool uses in transcript as a complexity proxy
-TOOL_COUNT=$(grep -c '"type":"tool_use"' "$TRANSCRIPT_PATH" 2>/dev/null || echo "0")
+TOOL_COUNT=$(grep -c '"type":"tool_use"' "$TRANSCRIPT_PATH" 2>/dev/null || true)
 
 # Trivial session? Allow stop.
 if [[ "$TOOL_COUNT" -lt 5 ]]; then
