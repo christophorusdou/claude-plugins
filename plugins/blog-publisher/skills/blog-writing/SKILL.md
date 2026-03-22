@@ -15,7 +15,8 @@ This skill guides the complete process of writing and publishing a blog post to 
 
 **Blog repo:** `~/projects/blog/`
 **Posts directory:** `~/projects/blog/src/content/blog/`
-**Categories:** ai, news, tips, homelab
+**Categories:** ai, news, tips, homelab, opportunities
+**Preview page:** `blog.cdrift.com/preview-8bbac21f/` (lists unlisted posts)
 
 Follow all phases in order. Read the reference docs before drafting.
 
@@ -50,7 +51,9 @@ Summarize: What content from this repo could make a good blog post? Present 2-3 
 
 Once the user picks a topic:
 
-1. Determine the **category** (must be one of: `ai`, `news`, `tips`, `homelab`)
+1. Determine the **category** (must be one of: `ai`, `news`, `tips`, `homelab`, `opportunities`)
+   - Use `opportunities` for opportunity analysis posts (always set `unlisted: true`)
+   - Ask if the post should be `unlisted: true` (hidden from public listings, accessible by direct URL only)
 2. Read `references/style-guide.md` for the voice and structure rules for that category
 3. Read `references/frontmatter-schema.md` for the exact schema
 4. Propose:
@@ -151,13 +154,12 @@ Check if a remote is configured:
 cd ~/projects/blog && git remote -v
 ```
 
-**If remote exists:**
+Push to Forgejo (triggers CI which builds and deploys to Cloudflare Pages):
 ```bash
-cd ~/projects/blog && git push
+cd ~/projects/blog && git push forgejo main
 ```
-This triggers Forgejo Actions CI which builds and deploys to Cloudflare Pages automatically.
 
-**If no remote:**
+If push fails, deploy manually:
 ```bash
 cd ~/projects/blog && npx wrangler pages deploy dist/ --project-name=news-cdrift-com
 ```
@@ -165,4 +167,5 @@ cd ~/projects/blog && npx wrangler pages deploy dist/ --project-name=news-cdrift
 ### Confirm
 
 Tell the user the post is live (or will be once CI completes) at:
-`https://blog.cdrift.com/<category>/<slug>`
+- **Listed post:** `https://blog.cdrift.com/<category>/<slug>`
+- **Unlisted post:** same URL, but only discoverable via `https://blog.cdrift.com/preview-8bbac21f/`

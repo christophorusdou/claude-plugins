@@ -9,6 +9,8 @@ Claude Code plugin for writing and publishing blog posts to blog.cdrift.com from
 - **Framework:** Astro 5 with content collections
 - **Hosting:** Cloudflare Pages (free, zero backend)
 - **Posts directory:** `~/projects/blog/src/content/blog/`
+- **Git remote:** `forgejo` (forgejo-git:chris/blog.git)
+- **Preview page:** `blog.cdrift.com/preview-8bbac21f/` (lists unlisted posts)
 
 ## Structure
 
@@ -24,9 +26,15 @@ skills/
       post-examples.md   -- Annotated excerpts as style anchors
 ```
 
+## Unlisted Posts
+
+Posts with `unlisted: true` in frontmatter are built but hidden from all public listings, RSS, sitemap, and search. Direct URLs still work. All unlisted posts are listed at the secret preview page above.
+
+Use for: drafts shared for review, opportunity analysis posts, anything link-accessible but not publicly discoverable. To publish: remove `unlisted: true` and push.
+
 ## Deploy Paths
 
-- **CI (preferred):** `git push` to Forgejo triggers Actions which builds and deploys
+- **CI (preferred):** `cd ~/projects/blog && git push forgejo main` triggers Forgejo Actions which builds and deploys
 - **Manual:** `cd ~/projects/blog && pnpm build && npx wrangler pages deploy dist/ --project-name=news-cdrift-com`
 
 ## Source Repos
