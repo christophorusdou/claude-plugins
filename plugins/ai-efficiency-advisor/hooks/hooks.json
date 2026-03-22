@@ -7,7 +7,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/session-start-nudge.sh"
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/session-start-nudge.sh",
+            "timeout": 5
           }
         ]
       }

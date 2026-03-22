@@ -3,7 +3,7 @@
 # Checks time since last check-in and outputs a reminder if overdue.
 # Silent output = no context injection into Claude.
 
-set -euo pipefail
+# No set -e: SessionStart hooks must always exit 0 to avoid blocking sessions.
 
 CHECKIN_DIR="/Volumes/d50-970p-1t/projects/ai-efficiency/data/check-ins"
 SNAPSHOT_DIR="$HOME/.claude/cache/session-snapshots"

@@ -45,3 +45,5 @@ if [ -d "$DECISIONS_DIR" ]; then
 fi
 
 echo "Commands: /research, /career, /decisions"
+
+exit 0
