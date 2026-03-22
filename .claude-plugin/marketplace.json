@@ -29,7 +29,7 @@
     {
       "name": "homelab-context",
       "description": "Homelab infrastructure knowledge, deployment commands, and architecture guidance for cross-project use",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": {
         "name": "Chris"
       },
@@ -65,6 +65,16 @@
       },
       "source": "./plugins/ai-efficiency-advisor",
       "category": "productivity"
+    },
+    {
+      "name": "project-awareness",
+      "description": "Auto-generates project catalog on session start for cross-project awareness",
+      "version": "1.0.0",
+      "author": {
+        "name": "Chris"
+      },
+      "source": "./plugins/project-awareness",
+      "category": "development"
     }
   ]
 }
