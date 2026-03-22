@@ -1,7 +1,7 @@
 {
   "name": "memory",
   "description": "Centralized cross-project memory system with semantic search, voting, and git sync",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": {
     "name": "Chris"
   },
