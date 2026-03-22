@@ -1,0 +1,8 @@
+{
+  "name": "blog-publisher",
+  "description": "Write and publish blog posts to blog.cdrift.com from any repo",
+  "version": "1.0.0",
+  "author": {
+    "name": "Chris"
+  }
+}
