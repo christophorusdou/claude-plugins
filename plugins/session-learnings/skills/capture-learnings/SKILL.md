@@ -13,7 +13,7 @@ description: >-
 
 Choose the storage target based on what is available.
 
-### Primary: Memory MCP (when memory_store tool is available)
+### Primary: Knowledge archive (when memory_store tool is available)
 
 Call `memory_store` for each distinct learning with:
 - `source`: `"auto-captured"`
@@ -21,6 +21,9 @@ Call `memory_store` for each distinct learning with:
 - `category`: one of `pattern`, `gotcha`, `debug-insight`, `decision`
 - `triggers`: 2-4 keywords a developer would search when they need this insight
 - Omit `project` — let auto-detection scope it from cwd
+
+Do NOT capture user preferences or workflow feedback here — those belong
+in built-in memory (MEMORY.md files).
 
 ### Fallback: Auto-memory files (when memory MCP is unavailable)
 
