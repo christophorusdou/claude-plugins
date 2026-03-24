@@ -41,7 +41,7 @@ touch "$MARKER"
 # Block and ask Claude to reflect on learnings
 jq -n '{
   "decision": "block",
-  "reason": "Before finishing, reflect on whether this session produced non-obvious learnings worth preserving.\n\nWorth capturing (use the capture-learnings skill):\n- Debugging discovery: root cause was non-obvious, fix contradicted assumptions, or error was misleading\n- Architectural decision with trade-offs weighed\n- Gotcha or pitfall that would waste time if hit again\n- Tool/API/library behaved unexpectedly vs documentation\n- Configuration or environment nuance\n- Integration between systems revealed undocumented behavior\n\nIf no non-obvious learnings exist, just say so briefly and stop. Do NOT force learnings where none exist.",
+  "reason": "Reflect on the session. If non-obvious learnings exist (debugging discoveries, gotchas, architectural decisions, unexpected behavior), use the capture-learnings skill. If none, say so briefly and stop.",
   "systemMessage": "Session learnings check triggered (session had significant activity)."
 }'
 
