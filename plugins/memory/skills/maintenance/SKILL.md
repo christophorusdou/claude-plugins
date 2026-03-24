@@ -11,6 +11,15 @@ description: >-
 Run this skill periodically (weekly or when prompted) to keep the knowledge
 archive healthy and aligned with built-in memory.
 
+## Prerequisites
+
+Before calling any MCP tools, load their schemas via ToolSearch to ensure
+typed parameters are serialized correctly (schemas may be deferred):
+
+```
+ToolSearch(query: "select:mcp__plugin_memory_memory__memory_recall,mcp__plugin_memory_memory__memory_manage")
+```
+
 ## Workflow
 
 Execute these phases in order. Report results after each phase.

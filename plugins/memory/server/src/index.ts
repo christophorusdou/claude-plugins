@@ -20,6 +20,24 @@ import { getDetectedProject } from "./project-detect.js";
 import { saveSearchIndex } from "./search-index.js";
 import { preloadModel } from "./embeddings.js";
 
+// Coercion helpers for deferred-tool resilience: when MCP tool schemas are
+// evicted from the model's context, all params arrive as strings. These
+// preprocessors parse stringified arrays, numbers, and booleans so zod
+// validation still passes.
+const coerceArray = (v: unknown) => {
+  if (typeof v === "string") {
+    try { return JSON.parse(v); } catch { return v; }
+  }
+  return v;
+};
+const coerceNumber = (v: unknown) =>
+  typeof v === "string" && v.trim() !== "" ? Number(v) : v;
+const coerceBoolean = (v: unknown) => {
+  if (v === "true") return true;
+  if (v === "false") return false;
+  return v;
+};
+
 const server = new McpServer({
   name: "memory",
   version: "1.2.0",
@@ -47,23 +65,23 @@ server.tool(
       .nullable()
       .optional()
       .describe("Project name. Omit to auto-detect from cwd. Pass null explicitly for global scope."),
-    tags: z.array(z.string()).optional().describe("Tags for filtering"),
-    triggers: z
-      .array(z.string())
+    tags: z.preprocess(coerceArray, z.array(z.string()).optional()).describe("Tags for filtering"),
+    triggers: z.preprocess(coerceArray,
+      z.array(z.string())
       .optional()
-      .describe(
+    ).describe(
         "Keyword/regex patterns that boost this memory during recall when matched against the query. Plain strings match case-insensitively. Use /pattern/flags for regex (default flag: i)."
       ),
     source: z
       .enum(["manual", "auto-captured"])
       .optional()
       .describe("How this memory was created"),
-    confidence: z
-      .number()
+    confidence: z.preprocess(coerceNumber,
+      z.number()
       .min(0)
       .max(1)
       .optional()
-      .describe("Confidence level (0-1)"),
+    ).describe("Confidence level (0-1)"),
     version_context: z
       .string()
       .nullable()
@@ -157,11 +175,11 @@ server.tool(
       ])
       .optional()
       .describe("Filter by category"),
-    limit: z.number().optional().describe("Max results (default 10)"),
-    min_score: z
-      .number()
+    limit: z.preprocess(coerceNumber, z.number().optional()).describe("Max results (default 10)"),
+    min_score: z.preprocess(coerceNumber,
+      z.number()
       .optional()
-      .describe("Minimum memory score to include"),
+    ).describe("Minimum memory score to include"),
   },
   async (args) => {
     const results = await recallMemories({
@@ -242,8 +260,8 @@ server.tool(
       .nullable()
       .optional()
       .describe("Project filter (for list/consolidate) or new project (for update)"),
-    tags: z.array(z.string()).optional().describe("New tags (for update)"),
-    triggers: z.array(z.string()).optional().describe("New triggers (for update)"),
+    tags: z.preprocess(coerceArray, z.array(z.string()).optional()).describe("New tags (for update)"),
+    triggers: z.preprocess(coerceArray, z.array(z.string()).optional()).describe("New triggers (for update)"),
     version_context: z.string().nullable().optional().describe("Version context (for update)"),
     valid_until: z
       .string()
@@ -252,12 +270,12 @@ server.tool(
       .optional()
       .describe("Expiry date (for update)"),
     detail: z.string().optional().describe("Context for vote (upvote/downvote)"),
-    min_score: z.number().optional().describe("Minimum score (for list/cleanup)"),
-    limit: z.number().optional().describe("Max results"),
-    offset: z.number().optional().describe("Pagination offset (for list)"),
-    include_expired: z.boolean().optional().describe("Include expired (for audit, default true)"),
-    days_warning: z.number().optional().describe("Days ahead to warn (for audit, default 30)"),
-    threshold: z.number().min(0.5).max(0.84).optional().describe("Similarity threshold (for consolidate, default 0.70)"),
+    min_score: z.preprocess(coerceNumber, z.number().optional()).describe("Minimum score (for list/cleanup)"),
+    limit: z.preprocess(coerceNumber, z.number().optional()).describe("Max results"),
+    offset: z.preprocess(coerceNumber, z.number().optional()).describe("Pagination offset (for list)"),
+    include_expired: z.preprocess(coerceBoolean, z.boolean().optional()).describe("Include expired (for audit, default true)"),
+    days_warning: z.preprocess(coerceNumber, z.number().optional()).describe("Days ahead to warn (for audit, default 30)"),
+    threshold: z.preprocess(coerceNumber, z.number().min(0.5).max(0.84).optional()).describe("Similarity threshold (for consolidate, default 0.70)"),
     operation: z.enum(["push", "pull", "export", "rebuild"]).optional().describe("Sync operation (for sync)"),
     file_path: z.string().optional().describe("File path (for import)"),
   },

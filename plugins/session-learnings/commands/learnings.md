@@ -23,6 +23,11 @@ formatting guidelines.
 
 ### Review
 
+First load the MCP tool schema (it may be deferred):
+```
+ToolSearch(query: "select:mcp__plugin_memory_memory__memory_recall")
+```
+
 If the `memory_recall` MCP tool is available, call it with a broad query
 scoped to the current project, filtering to source `"auto-captured"`.
 Display results grouped by category.

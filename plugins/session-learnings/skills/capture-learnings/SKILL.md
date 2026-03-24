@@ -15,7 +15,18 @@ Choose the storage target based on what is available.
 
 ### Primary: Knowledge archive (when memory_store tool is available)
 
-Call `memory_store` for each distinct learning with:
+**Before calling memory_store**, load its schema to ensure typed parameters
+(arrays, numbers) are serialized correctly:
+
+```
+ToolSearch(query: "select:mcp__plugin_memory_memory__memory_store")
+```
+
+This is required because MCP tool schemas may be deferred (evicted from
+context) by the time a stop hook triggers this skill. Without the schema,
+array and number parameters get serialized as strings and fail validation.
+
+Then call `memory_store` for each distinct learning with:
 - `source`: `"auto-captured"`
 - `confidence`: `0.8`
 - `category`: one of `pattern`, `gotcha`, `debug-insight`, `decision`
