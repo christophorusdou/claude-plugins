@@ -40,7 +40,7 @@ const coerceBoolean = (v: unknown) => {
 
 const server = new McpServer({
   name: "memory",
-  version: "1.2.0",
+  version: "1.3.0",
 });
 
 // --- memory_store ---

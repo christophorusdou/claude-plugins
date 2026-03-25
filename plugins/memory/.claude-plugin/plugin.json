@@ -1,7 +1,7 @@
 {
   "name": "memory",
   "description": "Cross-project knowledge archive — searchable data lake fallback for built-in memory with semantic search, voting, and git sync",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "author": {
     "name": "Chris"
   },

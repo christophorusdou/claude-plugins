@@ -44,7 +44,7 @@ const coerceBoolean = (v) => {
 };
 const server = new McpServer({
     name: "memory",
-    version: "1.2.0",
+    version: "1.3.0",
 });
 // --- memory_store ---
 server.tool("memory_store", "Store a knowledge entry in the cross-project archive. For patterns, gotchas, debug insights, decisions, or facts that benefit from semantic search. NOT for user preferences or session feedback (use built-in memory for those). Auto-detects project scope. Deduplicates within same scope.", {
