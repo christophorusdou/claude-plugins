@@ -15,8 +15,12 @@ if [ -z "$file_path" ]; then
   exit 0
 fi
 
-# Block .env files
+# Block actual .env files, but only warn for .env.example / .env.template / .env.sample
 if [[ "$file_path" == *.env ]] || [[ "$file_path" == *.env.* ]] || [[ "$file_path" == */.env ]]; then
+  if [[ "$file_path" == *.example ]] || [[ "$file_path" == *.template ]] || [[ "$file_path" == *.sample ]]; then
+    echo "WARNING: Editing env template file: $file_path. Ensure no real secrets are added." >&2
+    exit 0
+  fi
   echo "BLOCK: Refusing to edit .env file: $file_path. Manage secrets via macOS Keychain or SSH." >&2
   exit 2
 fi
