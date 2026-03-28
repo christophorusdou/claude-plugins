@@ -2,6 +2,7 @@
 name: decisions
 description: Review, record, or manage career decisions
 argument-hint: "[list|new <title>|review]"
+effort: low
 ---
 
 # /decisions — Decision Management

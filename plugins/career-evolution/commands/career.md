@@ -2,6 +2,7 @@
 name: career
 description: View or update career profile, skills inventory, and strategic bets
 argument-hint: "[summary|update|bets|skills]"
+effort: low
 ---
 
 # /career — Profile Management
