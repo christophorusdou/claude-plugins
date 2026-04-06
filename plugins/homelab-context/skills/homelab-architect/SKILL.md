@@ -2,8 +2,14 @@
 name: homelab-architect
 description: >
   Use when planning a new project, discussing deployment strategy, choosing
-  where to run a service, or answering questions about available resources,
-  compute, storage, or connectivity.
+  where to run a service, or answering questions about available homelab
+  resources. Triggers on: "where should I run", "which server", "what's
+  available", "N100", "Mac Mini M4", "TrueNAS", "L40S", "GPU", "VRAM",
+  "always-on", "storage", "NAS", "monitoring", "Grafana", "Prometheus",
+  "macOS CI", "deploy to", "run on", "host on", "self-host",
+  "architecture", "new service", "add a service", "Cloudflare Pages",
+  "Cloudflare Tunnel", "OIDC", "Zitadel", or when deciding compute
+  placement, resource allocation, or infrastructure architecture.
 user-invocable: false
 ---
 

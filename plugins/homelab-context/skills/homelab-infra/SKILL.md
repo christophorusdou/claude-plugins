@@ -1,9 +1,16 @@
 ---
 name: homelab-infra
 description: >
-  Use when working with homelab infrastructure — Docker stacks, SSH,
-  Forgejo CI, Caddy routing, deployments, backups, or adding new services
-  to the N100 Docker host.
+  Use when working with homelab infrastructure, N100 Docker host, Forgejo
+  git/CI, Caddy reverse proxy, Cloudflare Tunnel, Tailscale VPN, TrueNAS
+  backups, Postgres, Redis, Zitadel auth, Ollama, or any *.cdrift.com
+  service. Triggers on: "N100", "Forgejo", "git.cdrift.com", "Caddy",
+  "Caddyfile", "docker-compose", "deploy", "SSH n100", "SSH l40s",
+  "push to Forgejo", "backup", "CI workflow", ".forgejo/workflows",
+  "container registry", "192.168.130", "cdrift.com", "shared network",
+  "Docker stack", "restart service", "connect to homelab", "access
+  Forgejo", "Forgejo API", "Forgejo runner", or editing infrastructure
+  files (compose, Caddyfile, workflow YAML).
 user-invocable: false
 ---
 
@@ -60,6 +67,41 @@ All stacks connect via the `shared` Docker network. Services communicate by host
 ```bash
 ssh n100 "cd ~/homelab/docker-compose/networking/ingress && docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile"
 ```
+
+### L40S Ollama + Caddy TLS Proxy
+
+The L40S (150.1.8.167) runs Ollama on :11434, exposed via Caddy HTTPS reverse proxy on :11435.
+
+**Caddyfile** (`/etc/caddy/Caddyfile` on L40S):
+```
+https://150.1.8.167:11435 {
+    reverse_proxy localhost:11434
+    tls internal
+}
+```
+
+**Caddy internal PKI paths** (on L40S):
+- Root CA: `/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt` (valid ~10 years)
+- Intermediate: `.../intermediate.crt` (rotates weekly)
+- Leaf cert: `.../certificates/local/150.1.8.167/150.1.8.167.crt` (rotates daily)
+
+**If Caddy TLS fails (`tlsv1 alert internal error`):**
+1. Verify Ollama is running: `ssh l40s "curl -s localhost:11434/api/tags | head -1"`
+2. Test Caddy TLS: `ssh l40s "curl -vk https://150.1.8.167:11435/api/tags"` (must use IP, not localhost — SNI must match)
+3. If TLS broken, restart Caddy: `ssh l40s "sudo systemctl restart caddy"`
+4. If still broken after restart, nuke PKI and regenerate:
+   ```bash
+   ssh l40s "sudo systemctl stop caddy && sudo rm -rf /var/lib/caddy/.local/share/caddy/certificates /var/lib/caddy/.local/share/caddy/pki && sudo systemctl start caddy"
+   ```
+5. After PKI regeneration, update the root CA in any client that pins it:
+   ```bash
+   ssh l40s 'sudo cat /var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt' > /path/to/project/certs/ollama-ca.crt
+   ```
+6. Recreate containers that mount the cert (restart alone won't pick up changed bind mount content in all cases)
+
+**Gotcha:** Nuking Caddy PKI regenerates the root CA with a new serial number. All clients pinning the old root CA will get `certificate verify failed` until updated.
+
+**VPN dependency:** The L40S is on a remote network (150.1.8.0/24). Services that call Ollama (e.g., Opportunity Radar on N100) require VPN connectivity. If VPN drops, Ollama calls timeout after 120s per request.
 
 ### Backup
 ```bash
