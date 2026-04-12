@@ -62,5 +62,5 @@ Expects a meeting type argument: `sprint-review`, `sprint-planning`, `grooming`,
 
 ## Project Path
 
-Data repo: `/Volumes/d50-970p-1t/projects/work-assistant-claude/`
+Data repo: `/Volumes/d50-970p-1t/projects/work/work-assistant-claude/`
 Work repos: `/Volumes/d50-970p-1t/projects/work/`

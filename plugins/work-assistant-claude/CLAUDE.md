@@ -6,7 +6,7 @@ Automated work intelligence — the behavioral layer for the work-assistant-clau
 
 | Repo | Local Path | Relationship |
 |------|-----------|-------------|
-| work-assistant-claude | `/Volumes/d50-970p-1t/projects/work-assistant-claude` | Data repo — SQLite database, configuration, generated output. This plugin provides the workflows; that repo stores the data. |
+| work-assistant-claude | `/Volumes/d50-970p-1t/projects/work/work-assistant-claude` | Data repo — SQLite database, configuration, generated output. This plugin provides the workflows; that repo stores the data. |
 | work | `/Volumes/d50-970p-1t/projects/work/` | Target workspace — 11 repos for Outdoor Rec Mgmt Platform |
 
 ## How It Works

@@ -2,7 +2,7 @@
 name: morning-briefing
 description: Generate daily morning intelligence briefing
 schedule: "45 7 * * 1-5"
-cwd: /Volumes/d50-970p-1t/projects/work-assistant-claude
+cwd: /Volumes/d50-970p-1t/projects/work/work-assistant-claude
 ---
 
 # Morning Briefing Agent

@@ -34,5 +34,5 @@ Force regenerate today's briefing with fresh data. Invokes the `morning-briefing
 
 ## Project Path
 
-The work-assistant-claude data repo is at `/Volumes/d50-970p-1t/projects/work-assistant-claude/`.
+The work-assistant-claude data repo is at `/Volumes/d50-970p-1t/projects/work/work-assistant-claude/`.
 Read data from there regardless of current working directory.

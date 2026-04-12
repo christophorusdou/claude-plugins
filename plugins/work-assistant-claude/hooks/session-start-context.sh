@@ -2,8 +2,8 @@
 # Work Assistant Claude — Session Start Context
 # Shows ambient context when in work-assistant-claude/ or work/ directories
 
-WA_DIR_1="/Volumes/d50-970p-1t/projects/work-assistant-claude"
-WA_DIR_2="/Users/chris/projects/work-assistant-claude"
+WA_DIR_1="/Volumes/d50-970p-1t/projects/work/work-assistant-claude"
+WA_DIR_2="/Users/chris/projects/work/work-assistant-claude"
 WORK_DIR_1="/Volumes/d50-970p-1t/projects/work"
 WORK_DIR_2="/Users/chris/projects/work"
 

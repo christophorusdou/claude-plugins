@@ -2,7 +2,7 @@
 name: weekly-patterns
 description: Weekly pattern detection and self-evolution analysis
 schedule: "0 20 * * 0"
-cwd: /Volumes/d50-970p-1t/projects/work-assistant-claude
+cwd: /Volumes/d50-970p-1t/projects/work/work-assistant-claude
 ---
 
 # Weekly Patterns Agent

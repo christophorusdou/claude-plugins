@@ -51,4 +51,4 @@ Format:
 
 ## Project Path
 
-All paths relative to `/Volumes/d50-970p-1t/projects/work-assistant-claude/`
+All paths relative to `/Volumes/d50-970p-1t/projects/work/work-assistant-claude/`

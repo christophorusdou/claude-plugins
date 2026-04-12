@@ -28,5 +28,5 @@ If no argument provided, show available meeting types and suggest based on sprin
 
 ## Project Path
 
-Data repo: `/Volumes/d50-970p-1t/projects/work-assistant-claude/`
+Data repo: `/Volumes/d50-970p-1t/projects/work/work-assistant-claude/`
 Sprint calendar: `modules/meeting-prep/config.yaml`

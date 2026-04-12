@@ -47,4 +47,4 @@ Show the health of the work-assistant-claude system.
 
 ## Project Path
 
-Data repo: `/Volumes/d50-970p-1t/projects/work-assistant-claude/`
+Data repo: `/Volumes/d50-970p-1t/projects/work/work-assistant-claude/`

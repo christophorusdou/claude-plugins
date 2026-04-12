@@ -2,7 +2,7 @@
 name: jira-sync
 description: Periodic Jira sprint data sync
 schedule: "0 8,10,12,14,16 * * 1-5"
-cwd: /Volumes/d50-970p-1t/projects/work-assistant-claude
+cwd: /Volumes/d50-970p-1t/projects/work/work-assistant-claude
 ---
 
 # Jira Sync Agent

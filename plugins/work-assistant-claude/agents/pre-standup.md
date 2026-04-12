@@ -2,7 +2,7 @@
 name: pre-standup
 description: Generate standup talking points before daily standup
 schedule: "30 10 * * 1-5"
-cwd: /Volumes/d50-970p-1t/projects/work-assistant-claude
+cwd: /Volumes/d50-970p-1t/projects/work/work-assistant-claude
 ---
 
 # Pre-Standup Agent
