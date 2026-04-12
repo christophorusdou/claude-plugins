@@ -1,69 +1,87 @@
 ---
 name: jira-sync
-description: Pull Jira sprint data and detect ticket transitions
-allowed-tools: Bash, Read, Write
+description: Pull Jira sprint data and assigned tickets via Atlassian MCP
+allowed-tools: Read, Bash, Write, mcp__atlassian__searchJiraIssuesUsingJql, mcp__atlassian__getJiraIssue
 ---
 
 # Jira Sync Skill
 
-Sync Jira sprint board data into local SQLite.
+Sync Jira sprint board data and assigned tickets into local SQLite.
+
+## Integration
+
+Uses the **Atlassian MCP server** (OAuth-authenticated) rather than raw REST API calls. No token management needed — the MCP server handles authentication.
 
 ## Workflow
 
 ### 1. Load Configuration
 
-- Read `modules/jira/config.yaml` for Jira URL, board ID, project keys
-- Read Jira token: `security find-generic-password -s work-assistant-jira -a chris -w`
+- Read `modules/jira/config.yaml` for cloud_id, project_keys, JQL filters
 
-### 2. Fetch Active Sprint
+### 2. Fetch Active Sprint Tickets
 
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "$JIRA_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=active"
+Use the Atlassian MCP tool:
+```
+mcp__atlassian__searchJiraIssuesUsingJql({
+  cloudId: "<cloud_id from config>",
+  jql: "project = PARKS AND sprint in openSprints() ORDER BY rank ASC",
+  fields: ["summary", "status", "assignee", "priority", "labels", "customfield_10016"],
+  maxResults: 100,
+  responseContentFormat: "markdown"
+})
 ```
 
-Extract sprint ID and name.
+### 3. Fetch Assigned Tickets (Beyond Sprint)
 
-### 3. Fetch Sprint Issues
-
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "$JIRA_URL/rest/agile/1.0/sprint/$SPRINT_ID/issue?maxResults=100&fields=summary,status,assignee,customfield_10016,labels,priority,comment"
+```
+mcp__atlassian__searchJiraIssuesUsingJql({
+  cloudId: "<cloud_id>",
+  jql: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
+  fields: ["summary", "status", "priority", "labels", "customfield_10016"],
+  maxResults: 50,
+  responseContentFormat: "markdown"
+})
 ```
 
-Note: `customfield_10016` is typically story points (verify for your Jira instance).
+### 4. Parse and Insert
 
-### 4. Fetch Assigned Issues (Beyond Sprint)
+For each ticket from both queries:
+- Extract: key, summary, status, assignee, sprint, story_points, labels, priority
+- Generate SQL INSERT statements
+- Apply to `jira_snapshots` table (use `INSERT OR IGNORE` for deduplication)
 
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "$JIRA_URL/rest/api/2/search?jql=assignee=currentUser()+AND+resolution=Unresolved&fields=summary,status,sprint,customfield_10016,labels,priority,comment"
-```
-
-### 5. Insert Snapshots
-
-For each ticket, insert into `jira_snapshots`:
-- ticket_key, summary, status, assignee, sprint, story_points, labels, priority
-- last_comment (most recent comment text), last_comment_author
-
-### 6. Detect Transitions
+### 5. Detect Transitions
 
 Compare current snapshot with previous snapshot for each ticket:
 
 ```sql
+-- Get previous snapshot for each ticket
 SELECT ticket_key, status FROM jira_snapshots
-WHERE snapshot_at = (SELECT MAX(snapshot_at) FROM jira_snapshots WHERE snapshot_at < datetime('now', '-1 hour'))
+WHERE snapshot_at < datetime('now', '-1 hour')
+GROUP BY ticket_key
+HAVING snapshot_at = MAX(snapshot_at)
 ```
 
 If status changed → insert into `jira_transitions`.
 
-### 7. Update Config
+### 6. Update Config
 
-Update `wa_config` with `last_jira_sync` = now.
+```sql
+INSERT OR REPLACE INTO wa_config (key, value, module)
+VALUES ('last_jira_sync', datetime('now'), 'jira');
+```
 
-### 8. Report
+### 7. Report
 
 Output: tickets synced count, transitions detected, any blocked tickets.
+
+## Fallback
+
+If the Atlassian MCP server is not available (not authenticated), fall back to REST API with macOS Keychain token:
+```bash
+TOKEN=$(security find-generic-password -s work-assistant-jira -a chris -w)
+curl -s -H "Authorization: Bearer $TOKEN" "https://tylertech.atlassian.net/rest/api/3/search?jql=..."
+```
 
 ## Project Path
 
