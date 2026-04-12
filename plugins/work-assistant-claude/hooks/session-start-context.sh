@@ -44,7 +44,7 @@ else
 fi
 
 # Check Jira attention items
-JIRA_COUNT=$(sqlite3 "$DB" "SELECT COUNT(DISTINCT ticket_key) FROM jira_snapshots WHERE (status LIKE '%Blocked%' OR status LIKE '%Review%') AND snapshot_at = (SELECT MAX(snapshot_at) FROM jira_snapshots);" 2>/dev/null || echo "0")
+JIRA_COUNT=$(sqlite3 "$DB" "SELECT COUNT(DISTINCT ticket_key) FROM jira_snapshots js WHERE (js.status LIKE '%Blocked%' OR js.status LIKE '%Review%') AND js.snapshot_at = (SELECT MAX(snapshot_at) FROM jira_snapshots WHERE ticket_key = js.ticket_key);" 2>/dev/null || echo "0")
 if [ "$JIRA_COUNT" -gt 0 ] 2>/dev/null; then
   echo " Jira: $JIRA_COUNT tickets need attention"
 fi

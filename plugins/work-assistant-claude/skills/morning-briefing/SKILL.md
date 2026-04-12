@@ -18,7 +18,8 @@ Generate a comprehensive morning intelligence briefing.
 
 ### 2. Sync Session Data
 
-- Query Claude Dash API: `curl -s http://192.168.130.160:8090/api/status`
+- Read `claude_dash_api` URL from `modules/session-sync/config.yaml`
+- Query Claude Dash API: `curl -s <claude_dash_api>/api/status`
 - Parse response for sessions from last 24 hours
 - Detect machine from CWD path patterns
 - Insert new sessions into `synced_sessions` table
