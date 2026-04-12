@@ -1,0 +1,8 @@
+{
+  "name": "work-assistant-claude",
+  "description": "Automated work intelligence — morning briefings, standup prep, meeting automation, session sync, and self-evolving pattern detection for a lead software engineer",
+  "version": "0.1.0",
+  "author": {
+    "name": "Chris"
+  }
+}
