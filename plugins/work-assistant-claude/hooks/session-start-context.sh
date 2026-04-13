@@ -56,7 +56,7 @@ if [ -n "$LAST_WIN" ]; then
 fi
 
 # Next meeting (from calendar)
-NEXT_MTG=$(swift "$WA_DIR/scripts/get-calendar.swift" 0 2>/dev/null | jq -r '[.[] | select(.all_day == false)] | sort_by(.start) | .[0] | "\(.start[11:16]) \(.title)"' 2>/dev/null)
+NEXT_MTG=$("$WA_DIR/scripts/get-calendar" 0 2>/dev/null | jq -r '[.[] | select(.all_day == false)] | sort_by(.start) | .[0] | "\(.start[11:16]) \(.title)"' 2>/dev/null)
 if [ -n "$NEXT_MTG" ] && [ "$NEXT_MTG" != "null null" ]; then
   echo " Next: $NEXT_MTG"
 fi
