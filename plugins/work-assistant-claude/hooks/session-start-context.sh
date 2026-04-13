@@ -55,6 +55,18 @@ if [ -n "$LAST_WIN" ]; then
   echo " Last Win session: $LAST_WIN"
 fi
 
+# Next meeting (from calendar)
+NEXT_MTG=$(swift "$WA_DIR/scripts/get-calendar.swift" 0 2>/dev/null | jq -r '[.[] | select(.all_day == false)] | sort_by(.start) | .[0] | "\(.start[11:16]) \(.title)"' 2>/dev/null)
+if [ -n "$NEXT_MTG" ] && [ "$NEXT_MTG" != "null null" ]; then
+  echo " Next: $NEXT_MTG"
+fi
+
+# Email unread count (Exchange only)
+EMAIL_UNREAD=$(osascript -e 'tell application "Mail" to return unread count of mailbox "Inbox" of account "Exchange"' 2>/dev/null)
+if [ -n "$EMAIL_UNREAD" ] && [ "$EMAIL_UNREAD" -gt 0 ] 2>/dev/null; then
+  echo " Email: $EMAIL_UNREAD unread (Exchange)"
+fi
+
 # Check for new patterns
 PATTERN_COUNT=$(sqlite3 "$DB" "SELECT COUNT(*) FROM detected_patterns WHERE status='new';" 2>/dev/null || echo "0")
 if [ "$PATTERN_COUNT" -gt 0 ] 2>/dev/null; then
