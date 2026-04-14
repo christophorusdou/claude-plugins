@@ -8,31 +8,44 @@ argument-hint: "[view|regenerate]"
 
 View or regenerate today's morning intelligence briefing.
 
-## Modes
+## Behavior
 
 ### `view` (default)
 
-Read and present today's briefing from `modules/briefing/output/YYYY-MM-DD.md`.
+Check if today's briefing exists:
+```bash
+ls /Volumes/d50-970p-1t/projects/work/work-assistant-claude/modules/briefing/output/$(date +%Y-%m-%d).md
+```
 
-If no briefing exists for today, offer to generate one.
-
-**Usage:** `/briefing` or `/briefing view`
+If exists: read and present it. If not: generate (same as `regenerate`).
 
 ### `regenerate`
 
-Force regenerate today's briefing with fresh data. Invokes the `morning-briefing` skill.
+1. Gather all data by running:
+   ```bash
+   bash /Volumes/d50-970p-1t/projects/work/work-assistant-claude/scripts/wa-briefing-data.sh
+   ```
 
-**Usage:** `/briefing regenerate`
+2. The script outputs structured sections: SESSIONS, JIRA SPRINT STATUS, MY TICKETS, GIT STATUS, CALENDAR TODAY, CALENDAR TOMORROW, EMAIL, PATTERNS, JOURNAL YESTERDAY.
 
-## Behavior
+3. Format the data into a morning briefing markdown file with sections:
+   - Yesterday's Sessions (table)
+   - Sprint Status (counts by status)
+   - My Tickets (grouped by status)
+   - Git Status (dirty repos only)
+   - Meetings Today (from calendar, deduplicated, skip cancelled)
+   - Tomorrow Preview (meetings needing prep)
+   - Email Highlights (unread count + notable messages)
+   - Today's Focus (inferred priorities)
+   - Patterns & Suggestions (new unreviewed)
 
-1. Determine today's date
-2. Check if `modules/briefing/output/YYYY-MM-DD.md` exists in the work-assistant-claude project
-3. If exists: read and present the briefing
-4. If not: invoke the `morning-briefing` skill to generate it
-5. For `regenerate`: always invoke the skill regardless of existing file
+4. Write to: `/Volumes/d50-970p-1t/projects/work/work-assistant-claude/modules/briefing/output/YYYY-MM-DD.md`
+
+5. Update wa_config:
+   ```bash
+   sqlite3 /Volumes/d50-970p-1t/projects/work/work-assistant-claude/data/assistant.db "INSERT OR REPLACE INTO wa_config (key, value, module) VALUES ('last_briefing', datetime('now'), 'briefing');"
+   ```
 
 ## Project Path
 
-The work-assistant-claude data repo is at `/Volumes/d50-970p-1t/projects/work/work-assistant-claude/`.
-Read data from there regardless of current working directory.
+Data repo: `/Volumes/d50-970p-1t/projects/work/work-assistant-claude/`

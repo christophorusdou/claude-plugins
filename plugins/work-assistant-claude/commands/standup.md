@@ -5,14 +5,33 @@ description: Quick standup prep with yesterday/today/blockers
 
 # /standup — Standup Prep
 
-Generate or view concise standup talking points.
+Generate concise standup talking points.
 
 ## Behavior
 
-1. Check if `modules/standup/output/YYYY-MM-DD.md` exists
-2. If exists and recent (generated within last 2 hours): present it
-3. If stale or missing: invoke the `standup-prep` skill to generate fresh talking points
-4. Output format: Yesterday / Today / Blockers — ~30 second speaking script
+1. Gather data by running:
+   ```bash
+   bash /Volumes/d50-970p-1t/projects/work/work-assistant-claude/scripts/wa-briefing-data.sh
+   ```
+
+2. From the output, extract:
+   - **Yesterday:** sessions worked, journal entries from yesterday, Jira tickets moved
+   - **Today:** in-progress tickets, today's calendar meetings, planned focus
+   - **Blockers:** tickets with Blocked status, journal blocker entries
+
+3. Format as a ~30-second speaking script:
+   ```
+   **Yesterday:**
+   - [2-3 bullet points]
+
+   **Today:**
+   - [2-3 bullet points]
+
+   **Blockers:**
+   - [blockers or "None"]
+   ```
+
+4. Write to `modules/standup/output/YYYY-MM-DD.md` and insert into standup_entries table.
 
 ## Project Path
 

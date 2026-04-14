@@ -8,41 +8,28 @@ argument-hint: "[sessions|jira|all]"
 
 Trigger immediate data synchronization.
 
-## Modes
-
-### `sessions`
-
-Sync session data from both sources:
-1. Query Claude Dash API for recent sessions (both machines)
-2. Process any `.jsonl` files in `sync/incoming/`
-3. Report: new sessions found, machines, projects
-
-**Usage:** `/wa-sync sessions`
-
-### `jira`
-
-Sync Jira sprint data:
-1. Read Jira token from macOS Keychain
-2. Call Jira REST API for active sprint and assigned tickets
-3. Detect status transitions since last sync
-4. Report: tickets synced, transitions detected
-
-**Usage:** `/wa-sync jira`
-
-### `all` (default)
-
-Run both sessions and Jira sync.
-
-**Usage:** `/wa-sync` or `/wa-sync all`
-
 ## Behavior
 
-Invokes the appropriate skill(s):
-- `sessions` → `session-sync` skill
-- `jira` → `jira-sync` skill
-- `all` → both skills sequentially
+### For sessions and all:
 
-After sync, update `wa_config` timestamps and report results.
+Run the sync script:
+```bash
+bash /Volumes/d50-970p-1t/projects/work/work-assistant-claude/scripts/wa-sync.sh <mode>
+```
+
+Where `<mode>` is `sessions`, `jira`, or `all` (default).
+
+### For jira (in interactive session with Atlassian MCP):
+
+If the Atlassian MCP tools are available (mcp__atlassian__searchJiraIssuesUsingJql), prefer using them over the curl-based script — they handle OAuth automatically.
+
+Query with cloudId `748898e2-ca0a-43b6-981b-09e249be204c`:
+1. `project = PARKS AND sprint in openSprints() ORDER BY rank ASC` for sprint tickets
+2. `assignee = currentUser() AND resolution = Unresolved AND project = PARKS` for assigned tickets
+
+Parse results and insert into jira_snapshots table via sqlite3.
+
+If Atlassian MCP is not available, fall back to the script (requires Jira token in Keychain).
 
 ## Project Path
 
