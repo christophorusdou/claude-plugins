@@ -93,6 +93,16 @@
       },
       "source": "./plugins/blog-publisher",
       "category": "content"
+    },
+    {
+      "name": "work-assistant-claude",
+      "description": "Automated work intelligence — daily briefings, standup prep, meeting automation, session sync, and self-evolving pattern detection. Scoped to /work workspace only.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Chris"
+      },
+      "source": "./plugins/work-assistant-claude",
+      "category": "productivity"
     }
   ]
 }
