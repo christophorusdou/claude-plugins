@@ -1,13 +1,13 @@
 ---
 name: eod-review
 description: Summarize the day and write automatic journal entry
-schedule: "15 17 * * 1-5"
+schedule: "27 18 * * 1-5"
 cwd: /Volumes/d50-970p-1t/projects/work/work-assistant-claude
 ---
 
 # EOD Review Agent
 
-Runs at 5:15pm CST, Monday through Friday.
+Runs at 6:27pm CST, Monday through Friday.
 
 ## Prompt
 

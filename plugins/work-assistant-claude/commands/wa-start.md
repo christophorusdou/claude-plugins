@@ -21,7 +21,7 @@ Create 5 CronCreate jobs with `recurring: true`:
 2. **Pre-standup** — `28 10 * * 1-5` (10:28am weekdays)
    Prompt: Run `bash scripts/wa-briefing-data.sh`, generate standup script, insert standup_entries.
 
-3. **EOD review** — `17 17 * * 1-5` (5:17pm weekdays)
+3. **EOD review** — `27 18 * * 1-5` (6:27pm weekdays)
    Prompt: Run `bash scripts/wa-briefing-data.sh`, generate EOD summary, insert auto-eod journal entry.
 
 4. **Jira sync** — `7 8,10,12,14,16 * * 1-5` (every 2h weekdays)
