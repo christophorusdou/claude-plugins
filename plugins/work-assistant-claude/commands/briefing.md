@@ -8,6 +8,10 @@ argument-hint: "[view|regenerate]"
 
 View or regenerate today's morning intelligence briefing.
 
+## Scope
+
+This command is scoped to the **work workspace only** (`/Volumes/d50-970p-1t/projects/work/` or `~/projects/work/`). If the current working directory is not under the work folder, respond: "This command is only available in the work workspace." and do not execute.
+
 ## Behavior
 
 ### `view` (default)

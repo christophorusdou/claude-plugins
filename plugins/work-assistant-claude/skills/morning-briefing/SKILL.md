@@ -4,6 +4,7 @@ description: Generate the daily morning briefing with session data, Jira status,
 allowed-tools: Read, Bash, Glob, Grep, Write
 ---
 
+**Scope:** Work workspace only. Do not execute if CWD is outside `/Volumes/d50-970p-1t/projects/work/`.
 # Morning Briefing Skill
 
 Generate a comprehensive morning intelligence briefing.

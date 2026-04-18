@@ -7,6 +7,10 @@ description: Quick standup prep with yesterday/today/blockers
 
 Generate concise standup talking points.
 
+## Scope
+
+This command is scoped to the **work workspace only** (`/Volumes/d50-970p-1t/projects/work/` or `~/projects/work/`). If the current working directory is not under the work folder, respond: "This command is only available in the work workspace." and do not execute.
+
 ## Behavior
 
 1. Gather data by running:

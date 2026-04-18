@@ -7,6 +7,10 @@ description: Start work assistant — register all scheduled cron jobs for this 
 
 Register all scheduled cron jobs for the current Claude Code session. Run this at the start of each work session.
 
+## Scope
+
+This command is scoped to the **work workspace only** (`/Volumes/d50-970p-1t/projects/work/` or `~/projects/work/`). If the current working directory is not under the work folder, respond: "This command is only available in the work workspace." and do not execute.
+
 ## Behavior
 
 Create 5 CronCreate jobs with `recurring: true`:

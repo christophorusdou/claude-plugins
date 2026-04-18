@@ -4,6 +4,7 @@ description: Generate preparation materials for sprint review, planning, groomin
 allowed-tools: Read, Bash, Write, Grep, Glob
 ---
 
+**Scope:** Work workspace only. Do not execute if CWD is outside `/Volumes/d50-970p-1t/projects/work/`.
 # Meeting Prep Skill
 
 Generate meeting-specific preparation documents.

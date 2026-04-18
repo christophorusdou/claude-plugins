@@ -8,6 +8,10 @@ argument-hint: "[list|accept <id>|dismiss <id> \"reason\"|history]"
 
 View and act on detected patterns from the weekly intelligence analysis.
 
+## Scope
+
+This command is scoped to the **work workspace only** (`/Volumes/d50-970p-1t/projects/work/` or `~/projects/work/`). If the current working directory is not under the work folder, respond: "This command is only available in the work workspace." and do not execute.
+
 ## Behavior
 
 Run the patterns script:

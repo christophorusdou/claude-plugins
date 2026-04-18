@@ -4,6 +4,7 @@ description: Summarize the day and write an automatic journal entry
 allowed-tools: Read, Bash, Write, Grep
 ---
 
+**Scope:** Work workspace only. Do not execute if CWD is outside `/Volumes/d50-970p-1t/projects/work/`.
 # EOD Review Skill
 
 End-of-day summary — what happened today across both machines.

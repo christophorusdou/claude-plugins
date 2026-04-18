@@ -4,6 +4,7 @@ description: Pull Jira sprint data and assigned tickets via Atlassian MCP
 allowed-tools: Read, Bash, Write, mcp__atlassian__searchJiraIssuesUsingJql, mcp__atlassian__getJiraIssue
 ---
 
+**Scope:** Work workspace only. Do not execute if CWD is outside `/Volumes/d50-970p-1t/projects/work/`.
 # Jira Sync Skill
 
 Sync Jira sprint board data and assigned tickets into local SQLite.

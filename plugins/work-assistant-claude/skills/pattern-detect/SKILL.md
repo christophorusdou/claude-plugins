@@ -4,6 +4,7 @@ description: Analyze work data to detect patterns, inefficiencies, and self-impr
 allowed-tools: Read, Bash, Write
 ---
 
+**Scope:** Work workspace only. Do not execute if CWD is outside `/Volumes/d50-970p-1t/projects/work/`.
 # Pattern Detection Skill
 
 Analyze accumulated data to find non-obvious patterns and improvement opportunities.

@@ -7,6 +7,10 @@ description: Work Assistant system status — sync freshness, agent health, data
 
 Show the health of the work-assistant-claude system.
 
+## Scope
+
+This command is scoped to the **work workspace only** (`/Volumes/d50-970p-1t/projects/work/` or `~/projects/work/`). If the current working directory is not under the work folder, respond: "This command is only available in the work workspace." and do not execute.
+
 ## Behavior
 
 Run the status script:

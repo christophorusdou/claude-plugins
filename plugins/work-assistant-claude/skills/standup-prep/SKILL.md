@@ -4,6 +4,7 @@ description: Generate concise standup talking points (yesterday/today/blockers)
 allowed-tools: Read, Bash, Write
 ---
 
+**Scope:** Work workspace only. Do not execute if CWD is outside `/Volumes/d50-970p-1t/projects/work/`.
 # Standup Prep Skill
 
 Generate a ~30-second standup script.

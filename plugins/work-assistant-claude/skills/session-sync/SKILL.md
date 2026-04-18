@@ -4,6 +4,7 @@ description: Sync session data from Claude Dash API and SMB incoming files
 allowed-tools: Bash, Read, Write, Glob
 ---
 
+**Scope:** Work workspace only. Do not execute if CWD is outside `/Volumes/d50-970p-1t/projects/work/`.
 # Session Sync Skill
 
 Ingest session data from both Claude Dash API and SMB file share.
