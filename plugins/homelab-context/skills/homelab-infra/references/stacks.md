@@ -184,6 +184,30 @@
 
 ---
 
+## MediaVault Stack
+**Path on N100:** `/opt/apps/mediavault/`
+**Source repo:** `git.cdrift.com/chris/mediavault`
+
+| Service | Image | Ports | Network Alias |
+|---------|-------|-------|---------------|
+| mediavault-api | forgejo:3000/chris/mediavault-api | internal (8080) | mediavault-api |
+| mediavault-worker | forgejo:3000/chris/mediavault-api (same image, worker entrypoint) | — | — |
+| scraper | forgejo:3000/chris/scrapers-v2 (profile: scraper) | — | — |
+
+**Database:** mediavault (user: mediavault) — bare `public` schema, no `search_path`
+**Depends on:** shared (Postgres 16, Redis 7.4), TrueNAS NFS at `/mnt/truenas`
+**Volumes:** mediavault_variants (256px JPEG thumbnails on NVMe, ~121GB projected)
+**Frontend:** Mosaic (SvelteKit static, deployed at `mosaic.cdrift.com` via Caddy bind-mounted from `/opt/apps/mediavault/mosaic-build/`)
+**Notes:**
+- Go API + worker share one image; worker drains `ingest_jobs` table for thumbnail/poster generation
+- `MEDIA_ROOT_DIR=/mnt/truenas` bind-mounted read-only into api + worker containers
+- Auth: Zitadel OIDC (PKCE), `mediavault.cdrift.com/auth/callback`
+- Asset serving: HMAC signed URLs; Caddy offloads variant serving from NVMe
+- **Scraper** runs as opt-in profile: `docker compose --profile scraper run --rm scraper` — scheduled by host systemd timer `scrapers.timer` daily at 10:00 America/Chicago. Writes files to `/mnt/truenas/projects/scrapers_v2/...` and rows directly into the `mediavault` DB (NOT a separate scraper DB; see `mediavault/docs/SCRAPER_CONTRACT.md`)
+- **Schema gotcha:** the committed `mediavault-api/migrations/` does NOT include columns/tables the scraper writes (`scraper_sessions`, `collections.source_url`, etc.). Production DB was hand-provisioned from `mediavault/docs/SCRAPER_REFACTOR_HANDOFF.md`. Re-provisioning requires applying that SQL by hand.
+
+---
+
 ## Vidarchive Stack (YouTube Archiver)
 **Path on N100:** `/opt/apps/vidarchive/`
 
@@ -215,23 +239,30 @@
 | vault.cdrift.com | recordkeeper:8080 | record-keeper |
 | tolgee.cdrift.com | tolgee:8080 | tolgee |
 | vidarchive.cdrift.com | vidarchive:5000 | vidarchive |
+| mediavault.cdrift.com | mediavault-api:8080 | mediavault |
+| mosaic.cdrift.com | Caddy file_server (static SvelteKit build at `/opt/apps/mediavault/mosaic-build/`) | mediavault |
 
 All routes: HTTP only (Caddy `auto_https off`), Cloudflare terminates SSL.
+
+> **Local-vs-production drift:** the Caddyfile and `cloudflared/config.yml` checked into the `homelab` repo do NOT include `mediavault.cdrift.com`, `mosaic.cdrift.com`, or `vidarchive.cdrift.com` — those routes were added directly on N100 and never backported. Pull live config before editing or you'll regress production.
 
 ---
 
 ## Database Table
 
-| Database | User | Stack |
-|----------|------|-------|
-| ticket_pointing | pointing | ticket-pointing |
-| zitadel | zitadel | auth |
-| forgejo | forgejo | forgejo |
-| record_keeper | recordkeeper | record-keeper |
-| tolgee | tolgee | tolgee |
-| claude_dash | claude_dash | claude-dash |
+| Database | User | Stack | Writers |
+|----------|------|-------|---------|
+| ticket_pointing | pointing | ticket-pointing | ticket-pointing-server |
+| zitadel | zitadel | auth | zitadel |
+| forgejo | forgejo | forgejo | forgejo |
+| record_keeper | recordkeeper | record-keeper | recordkeeper |
+| tolgee | tolgee | tolgee | tolgee |
+| claude_dash | claude_dash | claude-dash | claude-dash-api |
+| mediavault | mediavault | mediavault | mediavault-api, mediavault-worker, **scrapers-v2 (separate repo)** |
 
 All on shared Postgres 16 (postgres:16-alpine) at `postgres:5432`.
+
+**`mediavault` is the only DB with cross-repo writers** — scrapers-v2 INSERTs directly into `collections`, `media_items`, `scraper_sessions`, `ingest_jobs`. Schema is owned by `mediavault-api/migrations/`; do not run alembic from scrapers-v2 against it. See `mediavault/docs/SCRAPER_CONTRACT.md`.
 
 ---
 
@@ -247,5 +278,6 @@ All on shared Postgres 16 (postgres:16-alpine) at `postgres:5432`.
    - `cd /opt/apps/ticket-pointing && docker compose up -d`
    - `cd /opt/apps/record-keeper && docker compose up -d`
    - `cd /opt/apps/vidarchive && docker compose up -d`
+   - `cd /opt/apps/mediavault && docker compose up -d` (api + worker; scraper is `--profile scraper`, fired by host systemd `scrapers.timer`)
    - `cd ~/homelab/docker-compose/apps/claude-dash && docker compose up -d`
    - `cd ~/homelab/docker-compose/apps/homepage && docker compose up -d`
