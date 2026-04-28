@@ -36,6 +36,34 @@ jobs:
 
 These are hard-won lessons — ignore at your peril.
 
+### Zombie `git` Processes from act_runner
+
+The runner spawns short-lived `git` children for each `actions/checkout`
+step (and similar). When the workflow completes, the parent runner
+process doesn't always reap them, leaving them as `Z`/`Zs` until the
+runner restarts. Symptoms: hundreds-to-thousands of zombies all
+parented to PID of the `forgejo-runner` daemon. Harmless to operations
+but eventually fills the process table.
+
+**Diagnose:**
+
+```bash
+ssh n100 'ps -eo stat,comm | awk "\$1 ~ /Z/" | wc -l'
+ssh n100 'ps -eo pid,ppid,stat,comm | awk "\$3 ~ /Z/ {print \$2}" | sort -u'
+```
+
+**Clear** — verify runner is idle first via the actions/tasks API
+(`status=running` should be empty), then:
+
+```bash
+ssh n100 'cd /opt/apps/forgejo && docker compose pull forgejo-runner && docker compose up -d forgejo-runner'
+```
+
+The `:12` major-version image tag floats, so `pull` may also pick up
+a runner patch that addresses the reaping bug. As of 2026-04-27, last
+seen in `code.forgejo.org/forgejo/runner:12.7.0` running 50+ days with
+~914 zombies accumulated; restart cleared them instantly.
+
 ### Artifact Upload: v3 ONLY
 
 Use `upload-artifact@v3`, NOT v4:
