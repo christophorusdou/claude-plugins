@@ -67,4 +67,15 @@ Never hardcode secrets. Use macOS Keychain:
 - Retrieve: `security find-generic-password -s "<service>" -a "<account>" -w`
 - Store: `security add-generic-password -s "<service>" -a "<account>" -w "<value>" -U`
 
+### Stored tokens (account is `chris` for all)
+
+| Service | Use | Retrieve |
+|---|---|---|
+| `forgejo-api` | Forgejo REST API at git.cdrift.com | `security find-generic-password -s forgejo-api -a chris -w` (or shell helper `forgejo-token`) |
+| `cloudflare-api` | Cloudflare REST API (Pages deploys, DNS, account info) | `security find-generic-password -s cloudflare-api -a chris -w` |
+
+Cloudflare API auth pattern: `curl -H "Authorization: Bearer $(security find-generic-password -s cloudflare-api -a chris -w)" https://api.cloudflare.com/client/v4/...`
+
+The same Cloudflare token is also set as the `CLOUDFLARE_API_TOKEN` Forgejo Actions secret on `chris/blog` and `chris/ticket-pointing` for `wrangler deploy` to Cloudflare Pages — when rotating, update keychain AND both Forgejo repo secrets.
+
 For detailed infrastructure reference, invoke the `homelab-infra` or `homelab-architect` skills.

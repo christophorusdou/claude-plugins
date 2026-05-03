@@ -58,6 +58,12 @@ All stacks connect via the `shared` Docker network. Services communicate by host
 - Shell helper: `forgejo-token` (defined in ~/.zshenv)
 - Usage: `curl -H "Authorization: token $(forgejo-token)" https://git.cdrift.com/api/v1/...`
 
+### Cloudflare API
+- Token in macOS Keychain: service `cloudflare-api`, account `chris`
+- Usage: `curl -H "Authorization: Bearer $(security find-generic-password -s cloudflare-api -a chris -w)" https://api.cloudflare.com/client/v4/...`
+- Verify token: `curl -H "Authorization: Bearer ..." https://api.cloudflare.com/client/v4/user/tokens/verify`
+- Same token is mirrored in Forgejo Actions secrets (`CLOUDFLARE_API_TOKEN` on `chris/blog` and `chris/ticket-pointing`) for `wrangler deploy` to Cloudflare Pages — rotate all three together.
+
 ### Stack Management
 - Deploy/restart: `ssh n100 "cd <stack-path> && docker compose pull && docker compose up -d"`
 - View logs: `ssh n100 "cd <stack-path> && docker compose logs -f <service>"`
