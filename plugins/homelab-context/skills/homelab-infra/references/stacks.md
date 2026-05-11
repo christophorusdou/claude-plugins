@@ -1,7 +1,7 @@
 # Docker Stacks Reference
 
 ## Shared Stack
-**Path on N100:** `~/homelab/docker-compose/shared/`
+**Path on N100:** `/opt/apps/shared/`
 
 | Service | Image | Ports | Network Alias |
 |---------|-------|-------|---------------|
@@ -23,7 +23,7 @@
 ---
 
 ## Auth Stack (Zitadel)
-**Path on N100:** `~/homelab/docker-compose/auth/`
+**Path on N100:** `/opt/apps/auth/`
 
 | Service | Image | Ports | Network Alias |
 |---------|-------|-------|---------------|
@@ -40,7 +40,7 @@
 ---
 
 ## Ingress Stack (Caddy + Cloudflared)
-**Path on N100:** `~/homelab/docker-compose/networking/ingress/`
+**Path on N100:** `/opt/apps/ingress/`
 
 | Service | Image | Ports | Network Alias |
 |---------|-------|-------|---------------|
@@ -58,7 +58,7 @@
 ---
 
 ## Forgejo Stack (Git + CI/CD + Registry)
-**Path on N100:** `~/homelab/docker-compose/apps/forgejo/`
+**Path on N100:** `/opt/apps/forgejo/`
 
 | Service | Image | Ports | Network Alias |
 |---------|-------|-------|---------------|
@@ -82,7 +82,7 @@
 ---
 
 ## Tolgee Stack (Localization)
-**Path on N100:** `~/homelab/docker-compose/apps/tolgee/`
+**Path on N100:** `/opt/apps/tolgee/`
 
 | Service | Image | Ports | Network Alias |
 |---------|-------|-------|---------------|
@@ -133,7 +133,7 @@
 ---
 
 ## Claude-Dash Stack
-**Path on N100:** `~/homelab/docker-compose/apps/claude-dash/`
+**Path on N100:** `/opt/apps/claude-dash/`
 
 | Service | Image | Ports | Network Alias |
 |---------|-------|-------|---------------|
@@ -150,7 +150,7 @@
 ---
 
 ## Homepage Stack
-**Path on N100:** `~/homelab/docker-compose/apps/homepage/`
+**Path on N100:** `/opt/apps/homepage/`
 
 | Service | Image | Ports | Network Alias |
 |---------|-------|-------|---------------|
@@ -269,15 +269,15 @@ All on shared Postgres 16 (postgres:16-alpine) at `postgres:5432`.
 ## Deployment Order
 
 1. `docker network create shared` (first time only)
-2. shared: `cd ~/homelab/docker-compose/shared && docker compose --profile init run --rm db-init && docker compose up -d`
-3. auth: `cd ~/homelab/docker-compose/auth && docker compose up -d`
-4. ingress: `cd ~/homelab/docker-compose/networking/ingress && docker compose up -d`
+2. shared: `cd /opt/apps/shared && docker compose --profile init run --rm db-init && docker compose up -d`
+3. auth: `cd /opt/apps/auth && docker compose up -d`
+4. ingress: `cd /opt/apps/ingress && docker compose up -d`
 5. Apps (any order, all depend on shared):
-   - `cd ~/homelab/docker-compose/apps/forgejo && docker compose up -d`
-   - `cd ~/homelab/docker-compose/apps/tolgee && docker compose up -d`
+   - `cd /opt/apps/forgejo && docker compose up -d`
+   - `cd /opt/apps/tolgee && docker compose up -d`
    - `cd /opt/apps/ticket-pointing && docker compose up -d`
    - `cd /opt/apps/record-keeper && docker compose up -d`
    - `cd /opt/apps/vidarchive && docker compose up -d`
    - `cd /opt/apps/mediavault && docker compose up -d` (api + worker; scraper is `--profile scraper`, fired by host systemd `scrapers.timer`)
-   - `cd ~/homelab/docker-compose/apps/claude-dash && docker compose up -d`
-   - `cd ~/homelab/docker-compose/apps/homepage && docker compose up -d`
+   - `cd /opt/apps/claude-dash && docker compose up -d`
+   - `cd /opt/apps/homepage && docker compose up -d`

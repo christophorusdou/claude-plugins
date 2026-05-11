@@ -71,7 +71,7 @@ All stacks connect via the `shared` Docker network. Services communicate by host
 
 ### Caddy Reload (after Caddyfile changes)
 ```bash
-ssh n100 "cd ~/homelab/docker-compose/networking/ingress && docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile"
+ssh n100 "cd /opt/apps/ingress && docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile"
 ```
 
 ### L40S Ollama + Caddy TLS Proxy

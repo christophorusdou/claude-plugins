@@ -111,20 +111,21 @@ Then in the Cloudflare dashboard:
 Copy files to N100:
 
 ```bash
-scp -r docker-compose/apps/<name> n100:~/homelab/docker-compose/apps/
+scp -r docker-compose/apps/<name> n100:/opt/apps/
 ```
 
 If Caddy or tunnel config changed, copy ingress config and reload:
 
 ```bash
-scp -r docker-compose/networking/ingress n100:~/homelab/docker-compose/networking/
-ssh n100 "cd ~/homelab/docker-compose/networking/ingress && docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile"
+scp docker-compose/networking/ingress/Caddyfile n100:/opt/apps/ingress/
+scp docker-compose/networking/ingress/cloudflared/config.yml n100:/opt/apps/ingress/cloudflared/
+ssh n100 "cd /opt/apps/ingress && docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile"
 ```
 
 Start the service:
 
 ```bash
-ssh n100 "cd ~/homelab/docker-compose/apps/<name> && docker compose up -d"
+ssh n100 "cd /opt/apps/<name> && docker compose up -d"
 ```
 
 Verify it is running:
