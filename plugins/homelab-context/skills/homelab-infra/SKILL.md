@@ -41,17 +41,29 @@ All stacks connect via the `shared` Docker network. Services communicate by host
 ## Quick Reference
 
 ### SSH Access
-- N100: `ssh n100` (root)
-- Mac Mini: `ssh mac-mini-server` (chris)
+- N100: `ssh n100` (root) — primary TS gateway
+- Pi 4 HA gateway: `ssh pi4-ha` (chris)
 - TrueNAS: `ssh truenas` (chris)
 - L40S: `ssh l40s` (aitin)
-- All shortcuts work remotely via Tailscale subnet route (no config changes needed)
+- All shortcuts work remotely via Tailscale (use `*.tail15b3e4.ts.net` as `HostName` in `~/.ssh/config` for off-LAN reachability — direct WireGuard P2P on-LAN, DERP fallback elsewhere)
 
-### Tailscale Remote Access
-- N100 Tailscale IP: 100.72.109.30
-- Subnet router: 192.168.130.0/24 (full LAN access from anywhere)
-- Exit node: enabled (opt-in per client)
-- Config: `tailscale up --advertise-routes=192.168.130.0/24 --advertise-exit-node --accept-dns=false`
+### Tailscale Remote Access — HA pair (May 2026)
+- **n100** (`100.72.109.30`, TS 1.96.4) — primary subnet router + exit node
+- **pi4-ha** (`100.122.158.33`, TS 1.98.2) — secondary subnet router + exit node (warm standby)
+- Both advertise `192.168.130.0/24` + `0.0.0.0/0` + `::/0`; key expiry disabled on both
+- Sticky failover (~45s); when primary fails, secondary takes over and keeps role until *it* fails
+- Tailnet suffix: `tail15b3e4.ts.net`
+- Config (both, identical flag set — no `--accept-routes`): `tailscale up --advertise-routes=192.168.130.0/24 --advertise-exit-node --accept-dns=false`
+- Pi 4 connects via RG-E5 LAN port (n100 has no spare NICs). UDP GRO tuning persisted via `/etc/networkd-dispatcher/routable.d/50-tailscale.sh` on Pi for ~2x exit-node throughput.
+
+**Authoritative route state via API (older CLI clients show stale data):**
+```bash
+TOKEN=$(security find-generic-password -s tailscale-api -a chris -w)
+curl -sH "Authorization: Bearer $TOKEN" https://api.tailscale.com/api/v2/tailnet/-/devices | jq '.devices[] | {hostname, id, nodeId}'
+curl -sH "Authorization: Bearer $TOKEN" https://api.tailscale.com/api/v2/device/{id}/routes
+```
+
+**Critical gotcha — subnet routers must NOT use `--accept-routes`:** If a subnet router accepts the tailnet-advertised `/24` for its own LAN, the kernel picks `tailscale0` over `eth0` for reply traffic → asymmetric routing → ICMP/SSH from other LAN hosts silently times out (request arrives on eth0, reply goes out tailscale0). Diagnostic: `tcpdump -i any -nn icmp` on the router shows mismatched `In`/`Out` interfaces. Fix: `tailscale set --accept-routes=false`. IPv6 link-local works as a side-channel diagnostic — if v6 link-local works but v4 LAN doesn't, suspect this exact bug.
 
 ### Forgejo API
 - Token in macOS Keychain: service `forgejo-api`, account `chris`

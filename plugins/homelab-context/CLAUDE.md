@@ -36,10 +36,13 @@ curl -H "Authorization: token $(forgejo-token)" https://git.cdrift.com/api/v1/..
 ## Network
 | Device | IP | SSH | Role |
 |--------|----|-----|------|
-| N100 (Debian 13) | 192.168.130.160 | `ssh n100` (root) | Primary Docker host, always-on |
-| Mac Mini M4 | 192.168.130.170 | `ssh mac-mini-server` (chris) | Monitoring, macOS CI runner |
+| N100 (Debian 13) | 192.168.130.160 | `ssh n100` (root) | Primary Docker host + primary Tailscale gateway, always-on |
+| Pi 4 (Ubuntu 26.04) | 192.168.130.161 | `ssh pi4-ha` (chris) | Secondary Tailscale gateway (HA standby), always-on |
+| Mac Mini M4 | 192.168.130.170 | `ssh mac-mini-server` (chris) | (powered off since 2026-04-14) |
 | TrueNAS | 192.168.130.230 | `ssh truenas` (chris) | Storage/backups, on-demand WoL |
 | L40S Remote | 150.1.8.167 | `ssh l40s` (aitin) | GPU/ML workloads (shared server) |
+
+**Tailscale HA:** n100 and pi4-ha both advertise `192.168.130.0/24` + exit-node. Sticky primary failover (~45s detection). Tailnet suffix: `tail15b3e4.ts.net` — prefer `Host*.tail15b3e4.ts.net` in `~/.ssh/config` for off-LAN reachability.
 
 ## Domains
 | Domain | Target |
@@ -73,6 +76,7 @@ Never hardcode secrets. Use macOS Keychain:
 |---|---|---|
 | `forgejo-api` | Forgejo REST API at git.cdrift.com | `security find-generic-password -s forgejo-api -a chris -w` (or shell helper `forgejo-token`) |
 | `cloudflare-api` | Cloudflare REST API (Pages deploys, DNS, account info) | `security find-generic-password -s cloudflare-api -a chris -w` |
+| `tailscale-api` | Tailscale REST API (devices, routes, ACL) — authoritative for route state when CLI shows stale data | `security find-generic-password -s tailscale-api -a chris -w` |
 
 Cloudflare API auth pattern: `curl -H "Authorization: Bearer $(security find-generic-password -s cloudflare-api -a chris -w)" https://api.cloudflare.com/client/v4/...`
 
