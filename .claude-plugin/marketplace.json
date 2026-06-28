@@ -103,6 +103,16 @@
       },
       "source": "./plugins/work-assistant-claude",
       "category": "productivity"
+    },
+    {
+      "name": "second-brain",
+      "description": "Personal capture→process→vault notebook — captures ideas/learnings/findings from anywhere into a central inbox, dedups and links them as a graph, and turns mature ones into project actions",
+      "version": "0.1.0",
+      "author": {
+        "name": "Chris"
+      },
+      "source": "./plugins/second-brain",
+      "category": "knowledge"
     }
   ]
 }

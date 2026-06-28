@@ -1,0 +1,10 @@
+{
+  "name": "second-brain",
+  "description": "Personal capture→process→vault notebook — captures ideas/learnings/findings from anywhere, discusses and dedups them, links them as a graph, and turns mature ones into project actions",
+  "version": "0.1.0",
+  "author": {
+    "name": "Chris"
+  },
+  "license": "MIT",
+  "keywords": ["notebook", "second-brain", "knowledge", "ideas", "inbox"]
+}
