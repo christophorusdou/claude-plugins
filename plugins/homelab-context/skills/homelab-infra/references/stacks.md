@@ -174,6 +174,28 @@
 
 ---
 
+## Homelab Actions Stack (TrueNAS Power Control)
+**Path on N100:** `/opt/apps/homelab-actions/`
+**Source repo:** homelab (`docker-compose/apps/homelab-actions/`)
+
+| Service | Image | Ports | Network |
+|---------|-------|-------|---------|
+| homelab-actions | locally built (`src/Dockerfile`) | 3005 (host) | network_mode: host |
+
+**Database:** none
+**Public:** none — LAN/Tailscale only (`192.168.130.160:3005`), no Cloudflare route
+**Notes:**
+- Wake-on-LAN + SSH-shutdown control for the TrueNAS appliance (192.168.130.230).
+- `network_mode: host` is REQUIRED so the WoL magic packet reaches the LAN broadcast;
+  it therefore can't join the `shared` bridge, so it reads mediavault/scraper state from
+  the Docker socket (`/var/run/docker.sock:ro`) rather than HTTP-over-DNS.
+- Exposes `/api/status` (truenas_up, scraper_running, smb_busy) + Wake/Shutdown endpoints —
+  consumed by the Homepage dashboard's TrueNAS widget and power buttons.
+- `ACTIONS_TOKEN` env required for auth; mounts the backup SSH key read-only.
+- Watchtower disabled (locally built image, not from registry).
+
+---
+
 ## Monitoring Stack (Mac Mini M4)
 **Path on Mac Mini:** `~/homelab/docker-compose/monitoring/`
 

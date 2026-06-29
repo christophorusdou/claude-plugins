@@ -48,12 +48,18 @@ curl -H "Authorization: token $(forgejo-token)" https://git.cdrift.com/api/v1/..
 | Domain | Target |
 |--------|--------|
 | pointing.cdrift.com | Cloudflare Pages (frontend) |
-| pointingapi.cdrift.com | Cloudflare Tunnel → Caddy → server:3001 |
+| pointingapi.cdrift.com | Cloudflare Tunnel → Caddy → server-go:3002 (Node server:3001 fallback) |
 | auth.cdrift.com | Cloudflare Tunnel → Caddy → zitadel:8080 |
 | git.cdrift.com | Cloudflare Tunnel → Caddy → forgejo:3000 |
 | vault.cdrift.com | Cloudflare Tunnel → Caddy → recordkeeper:8080 |
 | tolgee.cdrift.com | Cloudflare Tunnel → Caddy → tolgee:8080 |
 | vidarchive.cdrift.com | Cloudflare Tunnel → Caddy → vidarchive:5000 |
+| mediavault.cdrift.com | Cloudflare Tunnel → Caddy → mediavault-api:8080 |
+| mosaic.cdrift.com | Cloudflare Tunnel → Caddy → mediavault-api:8080 (+ static frontend) |
+| aperture.cdrift.com | Cloudflare Tunnel → Caddy → mediavault-api:8080 (+ static frontend) |
+| stele.cdrift.com | Cloudflare Tunnel → Caddy → mediavault-api:8080 (+ static frontend) |
+| personalhistorianapi.cdrift.com | Cloudflare Tunnel → Caddy → personalhistorian-api:8000 (frontend on CF Pages) |
+| interior.cdrift.com | Cloudflare Tunnel → Caddy → interior-design-api-1:8000 |
 | helix.cdrift.com | Cloudflare Access/Zitadel -> Cloudflare Tunnel -> cloudbeaver:8978 (direct, not Caddy) |
 | second-brain.cdrift.com | Cloudflare Access -> Cloudflare Tunnel -> Caddy -> second-brain-web:3000 (Zitadel OIDC at the app too) |
 
@@ -72,7 +78,7 @@ ssh n100 "docker ps --format '{{.Names}} {{.Image}} {{.Status}}' | sort"
 **Helix:** CloudBeaver SQL web client at `helix.cdrift.com`, runtime path `/opt/apps/helix`, image `dbeaver/cloudbeaver:26.0.5`, container `helix-cloudbeaver`, Docker alias `cloudbeaver`, no host-published ports. It routes directly from cloudflared to `cloudbeaver:8978` to avoid Caddy Host-header bypass for DB admin access.
 
 ## Shared Services
-- **Postgres 16**: shared instance; db-init creates core databases (ticket_pointing, zitadel, forgejo, record_keeper, tolgee, claude_dash). Live also includes app/manual databases such as mediavault, personal_historian, interior_design, opp_radar, and second_brain.
+- **Postgres 16**: shared instance; db-init creates core databases (ticket_pointing, zitadel, forgejo, record_keeper, tolgee, claude_dash, personal_historian). Live also includes app/manual databases such as mediavault, interior_design, opp_radar, and second_brain.
 - **Redis 7.4**: sessions, caching, pub/sub
 - **Zitadel OIDC**: SSO at auth.cdrift.com
 - **Caddy + Cloudflare Tunnel**: reverse proxy + encrypted ingress for *.cdrift.com
