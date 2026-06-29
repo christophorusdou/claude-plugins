@@ -9,6 +9,13 @@ Second-brain notebook command. Usage:
 - `/sb tidy` — regenerate INDEX.md, suggest links, flag stale seeds
 - `/sb status` — show pending inbox count + recent vault activity
 
+Research wikis (loop ② — you give a topic + sources, I synthesize):
+
+- `/sb research <topic>` — scaffold a research wiki under `research/<topic>/`, linked from a notebook entry
+- `/sb ingest <url|path> [--topic <slug>]` — read a source → summary page + revise concept/topic pages → log → commit
+- `/sb ask <topic> "<question>"` — cited synthesis from the wiki; offer to file the answer back as a page
+- `/sb lint <topic>` — health-check a wiki (contradictions / stale / orphans / missing pages / gaps)
+
 ## Behavior
 
 Invoke the **second-brain** skill and follow its workflow. In short:
@@ -27,5 +34,11 @@ Invoke the **second-brain** skill and follow its workflow. In short:
 6. **status** — `GET .../count` for pending; `git -C "$SECOND_BRAIN_VAULT" log --oneline -5`.
 
 Always check the vault worktree is clean before mutating (see the skill). Never auto-push.
+
+For `research`/`ingest`/`ask`/`lint`, follow the **Research wikis (loop ②)** section of the skill:
+Chris supplies the topic + sources; you read and synthesize into the wiki, keep raw sources
+immutable under `sources/raw/`, link the topic to its originating notebook idea (`researches`),
+cite sources (`cites`), and promote durable convictions back to a notebook `finding`
+(`derived-from`).
 
 If no subcommand is given, show this help.

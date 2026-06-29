@@ -128,6 +128,55 @@ ids/titles and offer to open or relate them.
 `bash "$VAULT/scripts/generate-index.sh"`, then review: suggest missing links, re-categorize
 loosely-tagged entries, and flag stale `seed`s (old and never developed) for archive/promote.
 
+## Research wikis — loop ② (`/sb research | ingest | ask | lint`)
+
+Two loops. The **notebook** (`entries/`) holds *your own* ideas (loop ①, above). A **research
+wiki** (`$VAULT/research/<topic>/`) is loop ②: **Chris supplies a topic + external sources; YOU
+read and synthesize them.** He curates and steers (topic, sources, questions, corrections); you do
+the grunt work — read each source, write its summary, build and *revise* the concept/topic pages,
+flag contradictions, keep cross-references current. The emergent understanding lives in the wiki;
+distilled convictions promote back to the notebook as `finding`s.
+
+**Raw sources are immutable.** Save the fetched original to `sources/raw/<slug>.md` and never edit
+it. Everything else under `research/<topic>/` is yours to write. Page types: `source` (summary of
+one raw source; frontmatter `url` + `ingested`), `concept` (evolving synthesis), `topic`
+(`_topic.md` overview/thesis). All research pages set `topic: <slug>`.
+
+### `/sb research <topic>`
+Scaffold `$VAULT/research/<slug>/` with `_topic.md` (type: topic), `sources/raw/`, `concepts/`,
+and `log.md`. Then seed it: from the originating notebook entry, add a `researches` edge to the
+topic (e.g. `[[llm-wiki-pattern]]` researches `[[<topic-id>]]`). Commit.
+
+### `/sb ingest <url|path> [--topic <slug>]`
+The compounding core — for each source, one at a time:
+1. **Fetch/read:** a URL via WebFetch; a local file via Read (PDFs via the `pages` param).
+2. **Save raw (immutable):** write the captured text to `sources/raw/<slug>.md` with `url` and the
+   fetched date. Never edit it again.
+3. **Discuss** the key takeaways with Chris.
+4. **Summarize:** write the `source` summary page `sources/<slug>.md` (`cites` nothing; concepts
+   cite *it*).
+5. **Integrate:** create or **revise** `concept` pages — fold in the new information, and where it
+   **contradicts** an existing page, flag it explicitly (a `contradicts` edge or a note). Update
+   `_topic.md`'s thesis if the synthesis shifted. Concept/topic pages link to the source with
+   `cites`.
+6. **Log + commit:** append `## [YYYY-MM-DD] ingest | <title>` to `log.md`, regenerate the index,
+   one commit. A single source typically touches several pages.
+
+### `/sb ask <topic> "<question>"`
+Read the topic's pages (index/`_topic.md`/concepts) and synthesize a **cited** answer. If it's
+worth keeping, **offer to file it back** as a new `concept` page so explorations compound rather
+than vanish into chat.
+
+### `/sb lint <topic>`
+Health-check the wiki: contradictions between pages, stale claims superseded by newer sources,
+orphan pages (no inbound links), concepts mentioned but lacking their own page, missing
+cross-references, and gaps worth a web search. Propose fixes + next questions/sources.
+
+### Promote back to the notebook
+When research yields a durable conviction ("after these sources, I now hold X"), write it as a
+notebook `finding` in `entries/` with a `derived-from` edge to the topic (or a key source). This is
+how loop ② feeds loop ①.
+
 ## Entry format & Git
 
 - Frontmatter schema is in `$VAULT/CLAUDE.md` (schema_version 1). Set `source` and
