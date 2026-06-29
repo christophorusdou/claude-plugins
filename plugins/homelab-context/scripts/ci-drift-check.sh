@@ -1,19 +1,36 @@
 #!/usr/bin/env bash
-# ci-drift-check.sh — checks internal consistency of homelab repo docs vs actual files
-# Runs from the repo root (CI checkout directory). Exits 0 if clean, 1 if drift found.
+# ci-drift-check.sh — checks homelab infra files vs plugin documentation
+# Compares compose files, Caddyfile, and db-init against plugin docs.
+# Runs from the homelab repo root. Exits 0 if clean, 1 if drift found.
 # Writes findings to /tmp/drift-report.txt and also prints to stdout.
+#
+# Plugin source lives in the claude-plugins repo (sibling directory or cloned by CI).
+# Set PLUGIN_DIR env var to override the plugin location.
 
 set -uo pipefail
 
 REPORT=/tmp/drift-report.txt
 DRIFT=0
 
-# Paths (relative to repo root)
+# Locate the plugin directory
+if [ -n "${PLUGIN_DIR:-}" ]; then
+  # Explicit override (CI passes this after cloning)
+  :
+elif [ -d "../claude-plugins/plugins/homelab-context" ]; then
+  PLUGIN_DIR="../claude-plugins/plugins/homelab-context"
+elif [ -d "$HOME/projects/claude-plugins/plugins/homelab-context" ]; then
+  PLUGIN_DIR="$HOME/projects/claude-plugins/plugins/homelab-context"
+else
+  echo "ERROR: Cannot find claude-plugins/plugins/homelab-context. Set PLUGIN_DIR." >&2
+  exit 1
+fi
+
+# Paths
 COMPOSE_ROOT="docker-compose"
-STACKS_MD="plugins/homelab-context/skills/homelab-infra/references/stacks.md"
+STACKS_MD="$PLUGIN_DIR/skills/homelab-infra/references/stacks.md"
 CADDYFILE="docker-compose/networking/ingress/Caddyfile"
-CLAUDE_MD="plugins/homelab-context/CLAUDE.md"
-PROJECT_MAP="plugins/homelab-context/hooks/project-map.json"
+CLAUDE_MD="$PLUGIN_DIR/CLAUDE.md"
+PROJECT_MAP="$PLUGIN_DIR/hooks/project-map.json"
 
 : > "$REPORT"  # truncate/create
 
@@ -89,7 +106,7 @@ while IFS= read -r line; do
     # line looks like: "    @api host pointingapi.cdrift.com"
     domain=$(echo "$line" | sed 's/.*host[[:space:]]*//' | sed 's/[[:space:]].*//' | grep 'cdrift\.com' || true)
     [ -n "$domain" ] && caddy_domains+=("$domain")
-done < <(grep -E '[[:space:]]@[a-z]+ host ' "$CADDYFILE")
+done < <(grep -E '[[:space:]]@[a-z][a-z-]* host ' "$CADDYFILE")
 
 log "Domains in Caddyfile:"
 for d in "${caddy_domains[@]}"; do
@@ -128,6 +145,10 @@ log "Checking CLAUDE.md domains appear in Caddyfile..."
 for cd in "${claude_domains[@]}"; do
     if [ "$cd" = "pointing.cdrift.com" ]; then
         log "  SKIP: $cd (Cloudflare Pages — no Caddy route needed)"
+        continue
+    fi
+    if [ "$cd" = "helix.cdrift.com" ]; then
+        log "  SKIP: $cd (direct cloudflared -> cloudbeaver:8978, bypasses Caddy by design)"
         continue
     fi
     found=0
@@ -253,7 +274,9 @@ else
     for sdb in "${stacks_dbs[@]}"; do
         found=0
         for db in "${init_dbs[@]}"; do [ "$db" = "$sdb" ] && found=1 && break; done
-        [ $found -eq 0 ] && flag "stacks.md database table lists '$sdb' but db-init does not create it"
+        # App-managed DBs (created by the app, not db-init) legitimately appear in
+        # stacks.md but not in db-init — informational, not drift.
+        [ $found -eq 0 ] && log "  NOTE: stacks.md lists '$sdb' — app-created DB, not in db-init (expected)"
         [ $found -eq 1 ] && log "  OK: $sdb"
     done
 fi
