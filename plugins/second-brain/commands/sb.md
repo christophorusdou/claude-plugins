@@ -6,7 +6,8 @@ Second-brain notebook command. Usage:
 - `/sb process` — pull unprocessed inbox captures, discuss each, dedup/link, promote, commit
 - `/sb from-project <path>` — distill an existing repo/folder into a note (reverse direction)
 - `/sb search <query>` — search the vault (INDEX first, then grep entries)
-- `/sb tidy` — regenerate INDEX.md, suggest links, flag stale seeds
+- `/sb tidy` — quick pass: regenerate INDEX.md, suggest links, flag stale seeds
+- `/sb maintain` — comprehensive (~quarterly) curation: recategorize/taxonomy, tag cleanup, merge, split, obsolete stale entries, link+weight hygiene (propose → approve → one commit)
 - `/sb status` — show pending inbox count + recent vault activity
 
 Research wikis (loop ② — you give a topic + sources, I synthesize):
@@ -40,5 +41,9 @@ Chris supplies the topic + sources; you read and synthesize into the wiki, keep 
 immutable under `sources/raw/`, link the topic to its originating notebook idea (`researches`),
 cite sources (`cites`), and promote durable convictions back to a notebook `finding`
 (`derived-from`).
+
+For `maintain`, follow the **Maintenance** section of the skill: load the whole vault, propose a
+written curation plan (taxonomy/recategorize, tag cleanup, merge with inbound-link redirect, split,
+obsolete→archived, dead-link + weight recompute), get approval, apply as one commit.
 
 If no subcommand is given, show this help.

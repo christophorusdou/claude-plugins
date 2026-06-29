@@ -100,6 +100,9 @@ name the specific relationship, don't add the edge — a fully-connected graph c
   `relates-to` (generic — discouraged; last resort).
 - Direction convention: the edge points from the dependent/specific note to the thing it draws on
   (e.g. an instance → its principle; a learning → the system it came from).
+- **Set `weight`** on each link per the rule (in `$VAULT/CLAUDE.md`): `relationBase × clusterFactor`
+  — same-group ×1.0, cross-group ×0.5 (group = `topic`||`category`). Strong intra-cluster, thin
+  cross-cluster. The viewer computes a fallback if omitted, but set it during `/sb process`.
 - In the body, still reference notes with `[[other-id]]` for reading.
 - When processing, prefer **fewer, load-bearing** edges. Before adding one, ask: "would I navigate
   from here to there *for this reason*?" If not, skip it.
@@ -129,6 +132,30 @@ ids/titles and offer to open or relate them.
 
 `bash "$VAULT/scripts/generate-index.sh"`, then review: suggest missing links, re-categorize
 loosely-tagged entries, and flag stale `seed`s (old and never developed) for archive/promote.
+
+## Maintenance (`/sb maintain`)
+
+The **heavy, infrequent** (~quarterly) whole-vault curation — distinct from the quick `/sb tidy`.
+Run-time doesn't matter; thoroughness does. **Load ALL entries** (read `entries/` and `research/`,
+not just `INDEX.md`), **propose a written plan, get Chris's approval, then apply** as one commit.
+Require a clean worktree first. Cover, in order:
+
+1. **Cluster/taxonomy review** — list every `category` (notebook) and `topic` (research) with
+   counts; propose a clean, consistent taxonomy; **recategorize** entries onto it; flag
+   singletons (a category of one) and over-broad buckets to split or merge.
+2. **Tag cleanup** — normalize case, merge synonyms (e.g. `llm`/`LLM`), drop one-off noise tags,
+   suggest missing tags. Keep tags cross-cutting; clusters are the `category`.
+3. **Merge duplicates/overlaps** — fold one entry into another; **redirect every inbound link**
+   (scan all entries' `links[].to` and repoint to the survivor); delete the absorbed file; append
+   a `## Log` line on the survivor noting the merge.
+4. **Split overloaded entries** — break a note covering several ideas into focused ones; re-link.
+5. **Obsolete** — set `status: archived` (with a dated `## Log` reason) on entries no longer
+   relevant/superseded. Keep them (history); delete only true junk, and confirm each deletion.
+6. **Link hygiene + weights** — drop dead links (`to` with no matching entry), remove forced/
+   duplicate edges, and **recompute every link's `weight`** via the rule (backfill stored weights).
+7. Regenerate `INDEX.md`, summarize what changed, and make **one commit** (never auto-push).
+
+Always show the plan and diff-in-words before mutating; this command can merge/split/delete.
 
 ## Research wikis — loop ② (`/sb research | ingest | ask | lint`)
 
