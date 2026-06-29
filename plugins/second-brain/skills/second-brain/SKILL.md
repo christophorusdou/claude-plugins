@@ -86,10 +86,21 @@ what it unlocks.
 
 ## Linking conventions
 
-- `links:` in frontmatter is the machine-readable graph — a plain YAML list of entry ids:
-  `links: [other-id, another-id]`.
-- In the body, reference notes with Obsidian-style `[[other-id]]`.
-- Keep both **bidirectional**: if A links B, add A to B's `links` too.
+The graph is only useful if edges carry meaning. **Do not link by shared topic.** If you can't
+name the specific relationship, don't add the edge — a fully-connected graph carries zero info.
+
+- `links:` is a list of typed, **directional** edges `{to, rel}`, authored **once on the source**
+  (the entry the relationship originates from). The inbound side (backlinks) is **derived** in
+  code — never duplicate the reverse edge.
+- Relations: `instance-of` (A is a concrete case of principle B), `extracted-from` (A is a
+  learning pulled out of building B), `parallels` (A independently arrives at / resembles B),
+  `extends` (A builds on B), `contradicts` (A challenges B), `depends-on` (A requires B),
+  `relates-to` (generic — discouraged; last resort).
+- Direction convention: the edge points from the dependent/specific note to the thing it draws on
+  (e.g. an instance → its principle; a learning → the system it came from).
+- In the body, still reference notes with `[[other-id]]` for reading.
+- When processing, prefer **fewer, load-bearing** edges. Before adding one, ask: "would I navigate
+  from here to there *for this reason*?" If not, skip it.
 
 ## Action recommendations (the bridge to projects)
 
