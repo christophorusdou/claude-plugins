@@ -2,7 +2,7 @@
 
 Second-brain notebook command. Usage:
 
-- `/sb add [thought]` — capture an idea/learning/finding from this machine (discuss, then file)
+- `/sb add [thought]` — capture to the inbox (triage later via /sb process); `/sb add --now` captures + processes in one sitting
 - `/sb process` — pull unprocessed inbox captures, discuss each, dedup/link, promote, commit
 - `/sb from-project <path>` — distill an existing repo/folder into a note (reverse direction)
 - `/sb search <query>` — search the vault (INDEX first, then grep entries)
@@ -20,9 +20,9 @@ Research wikis (loop ② — you give a topic + sources, I synthesize):
 
 Invoke the **second-brain** skill and follow its workflow. In short:
 
-1. **add** — Discuss the thought, apply the maturity gate, check `INDEX.md` for overlaps, then
-   write/link a vault entry and commit. Prefer fast-tracking to the vault over the inbox (you're
-   already here to discuss).
+1. **add** — Capture to the inbox by default (`POST /capture`, `source: this-machine`); triage
+   later with `/sb process`. Use `/sb add --now` to capture + process immediately (run it through
+   the process steps). If the inbox is unreachable, fall back to `--now`.
 2. **process** — `GET $SECOND_BRAIN_SERVICE_URL/pending`. For each item: claim it
    (`PATCH .../status {"status":"processing"}`), discuss, detect overlaps, decide (new/merge/
    link/skip), recommend project actions, then resolve (`processed`/`skipped`/`duplicate`/

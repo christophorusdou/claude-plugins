@@ -39,15 +39,17 @@ Call these `$VAULT`, `$SVC`, `$TOK` below. Inbox calls always send `Authorizatio
 
 ## Capturing (`/sb add`)
 
-You are on the main machine, so prefer to **discuss first, then fast-track to a vault entry** —
-don't round-trip through the inbox. The inbox is for capture from *other* devices.
+Default: `/sb add` **captures to the inbox** (`POST $SVC/capture`, `source: this-machine`) — it
+does NOT process. Capturing is instant and non-disruptive; triage happens later in `/sb process`,
+so the web Inbox stays the single source of truth for everything captured-but-not-filed. Confirm
+the text with Chris and report the inbox id.
 
-1. Discuss the thought enough to know its `type` (idea/learning/finding), a good `title`, and a
-   stable kebab `id`.
-2. Apply the **maturity gate**: if it's still half-formed, keep shaping it or save it as
-   `status: seed` and stop — don't over-promote.
-3. Check `INDEX.md` for overlaps (see below) before creating a new file.
-4. Write the entry, link it, regenerate the index, commit (see Promotion + Git).
+- **Escape hatch — `/sb add --now`:** when Chris wants to capture *and* process in one sitting,
+  skip the inbox and run the capture straight through the `/sb process` steps: discuss → check
+  `INDEX.md` for overlaps → apply the maturity gate (half-formed → save as `status: seed`) →
+  write/link the entry → regenerate index → commit.
+- **Fallback:** if the inbox service is unreachable, fall back to `--now` (write the vault file
+  directly) so a capture is never lost.
 
 ## Processing the inbox (`/sb process`)
 
