@@ -155,11 +155,22 @@
 | Service | Image | Ports | Network Alias |
 |---------|-------|-------|---------------|
 | homepage | ghcr.io/gethomepage/homepage:latest | 3002:3000 | — |
+| dockerproxy | ghcr.io/tecnativa/docker-socket-proxy:latest | internal (2375) | dockerproxy |
 
 **Database:** none
 **Notes:**
-- Config at `./config/` directory
-- Dashboard for all homelab services
+- Config at `./config/` directory; tracked in `homelab` repo at `docker-compose/apps/homepage/`
+- LAN-only dashboard (no `*.cdrift.com` domain). Inventories every running N100 stack,
+  grouped Apps / Dev & Tooling / Core Services / Storage / Monitoring (Offline).
+- Service cards link to public `*.cdrift.com`; `config/bookmarks.yaml` has a "LAN Direct"
+  group with clickable `192.168.130.160:port` shortcuts for host-published ports.
+- **Live container status/stats** via the `dockerproxy` sidecar (read-only:
+  `CONTAINERS=1`, `POST=0`). `config/docker.yaml` → `n100: { host: dockerproxy, port: 2375 }`;
+  each service tagged `server: n100` + `container: <name>` + `showStats: true`.
+- **Do NOT mount `/var/run/docker.sock` directly into the homepage container** — gethomepage's
+  PUID/PGID privilege-drop strips the `group_add` supplementary group, so the non-root
+  process gets `connect EACCES /var/run/docker.sock`. The proxy avoids this without running
+  Homepage as root. Docker API route order is `/api/docker/status/{container}/{server}`.
 
 ---
 
@@ -254,6 +265,56 @@
 
 ---
 
+## Opportunity Radar Stack
+**Path on N100:** `/opt/apps/opportunity-radar/`
+**Source repo:** `git.cdrift.com/chris/opportunity-radar` (deploys via `docker-compose.n100.yml` overlay)
+
+| Service | Image | Ports | Network Alias |
+|---------|-------|-------|---------------|
+| api | forgejo:3000/chris/opp-radar-api:latest | 8091:8091 | — |
+| web | forgejo:3000/chris/opp-radar-web:latest | 3004:3000 | — |
+| crawl4ai | unclecode/crawl4ai:latest | internal | — |
+| searxng | searxng/searxng:latest | internal (8080) | — |
+
+**Database:** opp_radar (shared Postgres)
+**Public:** none — LAN-only (`192.168.130.160:3004` web, `:8091` api)
+**Notes:**
+- Calls the **L40S Ollama** endpoint (HTTPS `:11435`) → requires Wood-Mizer VPN up on N100; Ollama calls time out at 120s if VPN drops.
+- crawl4ai + searxng are local scraping/search helpers for the radar pipeline.
+
+---
+
+## Personal Historian Stack
+**Path on N100:** `/opt/apps/personalhistorian/`
+**Source repo:** `git.cdrift.com/chris/personalhistorian`
+
+| Service | Image | Ports | Network Alias |
+|---------|-------|-------|---------------|
+| personalhistorian-api | forgejo:3000/chris/personalhistorian:latest | internal (8000) | personalhistorian-api |
+
+**Database:** personal_historian (shared Postgres)
+**Public:** `personalhistorianapi.cdrift.com` → Caddy → `personalhistorian-api:8000`. The frontend
+`personalhistorian.cdrift.com` is **not** tunneled through N100 (served elsewhere, e.g. Cloudflare Pages).
+
+---
+
+## Interior Design Stack
+**Path on N100:** `/opt/apps/interior-design/`
+
+| Service | Image | Ports | Network Alias |
+|---------|-------|-------|---------------|
+| api | interior-design-api:local (locally built, not registry) | internal (8000) | interior-design-api-1 |
+| worker | interior-design-api:local (same image, worker entrypoint) | internal (8000) | — |
+| minio | minio/minio:latest | internal (9000) | — |
+
+**Database:** interior_design (shared Postgres)
+**Public:** `interior.cdrift.com` → Caddy → `interior-design-api-1:8000`
+**Notes:**
+- Image is built locally on N100 (`:local` tag), not pulled from the Forgejo registry — rebuild on the host to update.
+- MinIO provides S3-compatible object storage for generated assets.
+
+---
+
 ## Caddy Route Table
 
 | Domain | Target | Stack |
@@ -266,6 +327,11 @@
 | vidarchive.cdrift.com | vidarchive:5000 | vidarchive |
 | mediavault.cdrift.com | mediavault-api:8080 | mediavault |
 | mosaic.cdrift.com | Caddy file_server (static SvelteKit build at `/opt/apps/mediavault/mosaic-build/`) | mediavault |
+| aperture.cdrift.com | mediavault-api:8080 | mediavault (alt frontend) |
+| stele.cdrift.com | mediavault-api:8080 | mediavault (alt frontend) |
+| personalhistorianapi.cdrift.com | personalhistorian-api:8000 | personalhistorian |
+| interior.cdrift.com | interior-design-api-1:8000 | interior-design |
+| second-brain.cdrift.com | second-brain-web:3000 | second-brain |
 
 All routes: HTTP only (Caddy `auto_https off`), Cloudflare terminates SSL.
 
@@ -291,6 +357,9 @@ All routes: HTTP only (Caddy `auto_https off`), Cloudflare terminates SSL.
 | claude_dash | claude_dash | claude-dash | claude-dash-api |
 | mediavault | mediavault | mediavault | mediavault-api, mediavault-worker, **scrapers-v2 (separate repo)** |
 | second_brain | second_brain | second-brain | second-brain-inbox |
+| opp_radar | opp_radar | opportunity-radar | opp-radar-api |
+| personal_historian | personal_historian | personalhistorian | personalhistorian-api |
+| interior_design | interior_design | interior-design | interior-design-api, interior-design-worker |
 
 All on shared Postgres 16 (postgres:16-alpine) at `postgres:5432`.
 
@@ -341,8 +410,11 @@ Cloudflare Access in front + **Zitadel OIDC (Web+PKCE, no secret)** at the app
    - `cd /opt/apps/vidarchive && docker compose up -d`
    - `cd /opt/apps/mediavault && docker compose up -d` (api + worker; scraper is `--profile scraper`, fired by host systemd `scrapers.timer`)
    - `cd /opt/apps/claude-dash && docker compose up -d`
-   - `cd /opt/apps/homepage && docker compose up -d`
+   - `cd /opt/apps/homepage && docker compose up -d` (homepage + dockerproxy sidecar)
    - `cd /opt/apps/helix && docker compose up -d`
+   - `cd /opt/apps/opportunity-radar && docker compose -f docker-compose.n100.yml up -d` (needs Wood-Mizer VPN for L40S Ollama)
+   - `cd /opt/apps/personalhistorian && docker compose up -d`
+   - `cd /opt/apps/interior-design && docker compose up -d`
    - `cd /opt/apps/second-brain-inbox && docker compose -f docker-compose.prod.yml up -d`
    - `cd /opt/apps/second-brain-telegram && docker compose -f docker-compose.prod.yml up -d`
    - `cd /opt/apps/second-brain-web && docker compose -f docker-compose.prod.yml up -d`
