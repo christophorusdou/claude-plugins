@@ -229,6 +229,31 @@
 
 ---
 
+## Helix Stack (CloudBeaver SQL Web Client)
+**Path on N100:** `/opt/apps/helix/`
+**Local docs:** `homelab/docs/helix/`
+
+| Service | Image | Ports | Network Alias |
+|---------|-------|-------|---------------|
+| cloudbeaver | dbeaver/cloudbeaver:26.0.5 | internal (8978), no host-published port | cloudbeaver |
+
+**Database:** none external; CloudBeaver stores metadata in its workspace H2 database.
+**Depends on:** shared Docker network, Cloudflare Access/Zitadel gate, N100 VPN/Tailscale routing for remote DB targets
+**Auth:** Cloudflare Access with Zitadel SSO at the edge, then CloudBeaver local admin login
+**Volumes:** `/opt/apps/helix/workspace` -> `/opt/cloudbeaver/workspace`, `/opt/apps/helix/logs` -> `/opt/cloudbeaver/logs`
+**Notes:**
+- Public URL: `https://helix.cdrift.com`
+- Chosen over DbGate for stronger SQL Server driver support and DBeaver lineage.
+- Uses a random codename hostname instead of `sql` to avoid advertising the service role.
+- The route is direct from cloudflared to `http://cloudbeaver:8978`, not through Caddy.
+- Direct routing avoids a LAN/Tailscale Host-header bypass through N100's published Caddy port 80.
+- Workspace bind mount is included in `/opt/apps` TrueNAS stack-config backups.
+- If first-run setup expires with `Server configuration time has expired`, restart only CloudBeaver:
+  `ssh n100 "cd /opt/apps/helix && docker compose restart cloudbeaver"`
+- Store the CloudBeaver admin password in macOS Keychain as service `helix-cloudbeaver-admin`, account `chris`.
+
+---
+
 ## Caddy Route Table
 
 | Domain | Target | Stack |
@@ -244,7 +269,13 @@
 
 All routes: HTTP only (Caddy `auto_https off`), Cloudflare terminates SSL.
 
-> **Local-vs-production drift:** the Caddyfile and `cloudflared/config.yml` checked into the `homelab` repo do NOT include `mediavault.cdrift.com`, `mosaic.cdrift.com`, or `vidarchive.cdrift.com` — those routes were added directly on N100 and never backported. Pull live config before editing or you'll regress production.
+## Direct Cloudflared Route Table
+
+| Domain | Target | Stack | Why direct |
+|--------|--------|-------|------------|
+| helix.cdrift.com | cloudbeaver:8978 | helix | DB admin surface; avoids LAN/Tailscale Caddy Host-header bypass |
+
+> **Local-vs-production drift:** the Caddyfile and `cloudflared/config.yml` checked into the `homelab` repo may lag live N100 config. Known live-only routes include `mediavault.cdrift.com`, `mosaic.cdrift.com`, `vidarchive.cdrift.com`, and the direct `helix.cdrift.com -> cloudbeaver:8978` cloudflared route. Pull live config before editing or you'll regress production.
 
 ---
 
@@ -259,10 +290,40 @@ All routes: HTTP only (Caddy `auto_https off`), Cloudflare terminates SSL.
 | tolgee | tolgee | tolgee | tolgee |
 | claude_dash | claude_dash | claude-dash | claude-dash-api |
 | mediavault | mediavault | mediavault | mediavault-api, mediavault-worker, **scrapers-v2 (separate repo)** |
+| second_brain | second_brain | second-brain | second-brain-inbox |
 
 All on shared Postgres 16 (postgres:16-alpine) at `postgres:5432`.
 
 **`mediavault` is the only DB with cross-repo writers** — scrapers-v2 INSERTs directly into `collections`, `media_items`, `scraper_sessions`, `ingest_jobs`. Schema is owned by `mediavault-api/migrations/`; do not run alembic from scrapers-v2 against it. See `mediavault/docs/SCRAPER_CONTRACT.md`.
+
+---
+
+## Second Brain Stack
+**Path on N100:** `/opt/apps/second-brain-inbox/`, `/opt/apps/second-brain-telegram/`,
+`/opt/apps/second-brain-web/` (three compose stacks, each `docker-compose.prod.yml`)
+
+| Service | Image | Ports | Network Alias |
+|---------|-------|-------|---------------|
+| inbox | forgejo:3000/chris/second-brain-inbox:latest | 8095:8095 | second-brain-inbox |
+| telegram | forgejo:3000/chris/second-brain-telegram:latest | — | second-brain-telegram |
+| web | forgejo:3000/chris/second-brain-web:latest | 8096:3000 | second-brain-web |
+
+**Database:** second_brain (user: second_brain) — inbox service only
+**Depends on:** shared (Postgres); web + telegram reach the inbox over the `shared` network
+**Repo/CI:** `chris/second-brain` → Forgejo Actions builds all three images → Watchtower auto-deploys
+**Public:** `second-brain.cdrift.com` → Caddy → `second-brain-web:3000` (`header_up X-Forwarded-Proto https`);
+Cloudflare Access in front + **Zitadel OIDC (Web+PKCE, no secret)** at the app
+**Notes:**
+- Personal knowledge system: capture (Telegram bot `@c_second_brain_bot` / web / `curl`) → inbox
+  queue → `/sb process` in Claude Code → Markdown vault → web viewer (browse / 3D graph / research).
+- inbox + telegram: Go (chi + pgx; long-poll listener → `POST /capture`). web: SvelteKit
+  (adapter-node), `env_file: .env` (OIDC + proxy headers + `COOKIE_SECURE`).
+- Vault is a **separate git repo** (`chris/second-brain` `entries/` + `research/`) baked into the
+  web image at build (build context = repo root). The `second-brain` plugin (claude-plugins) drives
+  `/sb` commands — not a homelab service.
+- Web `.env` keys: `INBOX_URL/INBOX_TOKEN`, `SESSION_SECRET`, `OIDC_ISSUER/OIDC_CLIENT_ID/
+  OIDC_REDIRECT_URI` (no secret — PKCE public), `ORIGIN`, `PROTOCOL_HEADER`, `HOST_HEADER`,
+  `COOKIE_SECURE=true`. Inbox token also in Keychain (`second-brain-token`).
 
 ---
 
@@ -281,3 +342,7 @@ All on shared Postgres 16 (postgres:16-alpine) at `postgres:5432`.
    - `cd /opt/apps/mediavault && docker compose up -d` (api + worker; scraper is `--profile scraper`, fired by host systemd `scrapers.timer`)
    - `cd /opt/apps/claude-dash && docker compose up -d`
    - `cd /opt/apps/homepage && docker compose up -d`
+   - `cd /opt/apps/helix && docker compose up -d`
+   - `cd /opt/apps/second-brain-inbox && docker compose -f docker-compose.prod.yml up -d`
+   - `cd /opt/apps/second-brain-telegram && docker compose -f docker-compose.prod.yml up -d`
+   - `cd /opt/apps/second-brain-web && docker compose -f docker-compose.prod.yml up -d`

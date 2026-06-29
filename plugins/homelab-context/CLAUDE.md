@@ -54,12 +54,25 @@ curl -H "Authorization: token $(forgejo-token)" https://git.cdrift.com/api/v1/..
 | vault.cdrift.com | Cloudflare Tunnel → Caddy → recordkeeper:8080 |
 | tolgee.cdrift.com | Cloudflare Tunnel → Caddy → tolgee:8080 |
 | vidarchive.cdrift.com | Cloudflare Tunnel → Caddy → vidarchive:5000 |
+| helix.cdrift.com | Cloudflare Access/Zitadel -> Cloudflare Tunnel -> cloudbeaver:8978 (direct, not Caddy) |
+| second-brain.cdrift.com | Cloudflare Access -> Cloudflare Tunnel -> Caddy -> second-brain-web:3000 (Zitadel OIDC at the app too) |
 
-## Docker Stacks (N100) — 10 stacks
-shared (Postgres 16, Redis 7.4, backup, watchtower) · auth (Zitadel) · ingress (Caddy, Cloudflared) · forgejo (Git, CI runner) · ticket-pointing · record-keeper · tolgee · claude-dash · homepage · vidarchive
+## Docker Stacks (N100)
+Documented core stacks: shared (Postgres 16, Redis 7.4, backup, watchtower), auth (Zitadel), ingress (Caddy, Cloudflared), forgejo (Git, CI runner), ticket-pointing, record-keeper, tolgee, claude-dash, homepage, vidarchive, mediavault, helix.
+
+Live N100 also has additional app stacks such as personalhistorian, opportunity-radar,
+interior-design, and **second-brain** (three stacks: `second-brain-inbox`, `second-brain-telegram`,
+`second-brain-web`). Always verify live state before broad infra edits:
+
+```bash
+ssh n100 "find /opt/apps -maxdepth 1 -mindepth 1 -type d -printf '%f\n' | sort"
+ssh n100 "docker ps --format '{{.Names}} {{.Image}} {{.Status}}' | sort"
+```
+
+**Helix:** CloudBeaver SQL web client at `helix.cdrift.com`, runtime path `/opt/apps/helix`, image `dbeaver/cloudbeaver:26.0.5`, container `helix-cloudbeaver`, Docker alias `cloudbeaver`, no host-published ports. It routes directly from cloudflared to `cloudbeaver:8978` to avoid Caddy Host-header bypass for DB admin access.
 
 ## Shared Services
-- **Postgres 16**: 6 databases (ticket_pointing, zitadel, forgejo, record_keeper, tolgee, claude_dash)
+- **Postgres 16**: shared instance; db-init creates core databases (ticket_pointing, zitadel, forgejo, record_keeper, tolgee, claude_dash). Live also includes app/manual databases such as mediavault, personal_historian, interior_design, opp_radar, and second_brain.
 - **Redis 7.4**: sessions, caching, pub/sub
 - **Zitadel OIDC**: SSO at auth.cdrift.com
 - **Caddy + Cloudflare Tunnel**: reverse proxy + encrypted ingress for *.cdrift.com
