@@ -9,6 +9,7 @@ Second-brain notebook command. Usage:
 - `/sb tidy` — quick pass: regenerate INDEX.md, suggest links, flag stale seeds
 - `/sb maintain` — comprehensive (~quarterly) curation: recategorize/taxonomy, tag cleanup, merge, split, obsolete stale entries, link+weight hygiene (propose → approve → one commit)
 - `/sb status` — show pending inbox count + recent vault activity
+- `/sb lint [topic]` — health-check: no topic = the **notebook** (schema, dead links, orphans, stale, clusters); `<topic>` = a research wiki
 
 Research wikis (loop ② — you give a topic + sources, I synthesize):
 
@@ -33,10 +34,13 @@ Invoke the **second-brain** skill and follow its workflow. In short:
 4. **search** — Read `INDEX.md`, then grep `entries/`. Report ids/titles; offer to relate.
 5. **tidy** — Run `scripts/generate-index.sh`; review links, categories, stale seeds.
 6. **status** — `GET .../count` for pending; `git -C "$SECOND_BRAIN_VAULT" log --oneline -5`.
+7. **lint** (no topic) — Run `node "$SECOND_BRAIN_VAULT/web/scripts/lint-vault.mjs"`; present the grouped
+   report, then propose fixes (correct enums, drop/repoint dangling edges, connect an unlinked cluster, archive
+   a stale seed with a dated Log reason) → approve → one commit. The script is report-only; never auto-push.
 
 Always check the vault worktree is clean before mutating (see the skill). Never auto-push.
 
-For `research`/`ingest`/`ask`/`lint`, follow the **Research wikis (loop ②)** section of the skill:
+For `research`/`ingest`/`ask` and `lint <topic>`, follow the **Research wikis (loop ②)** section of the skill:
 Chris supplies the topic + sources; you read and synthesize into the wiki, keep raw sources
 immutable under `sources/raw/`, link the topic to its originating notebook idea (`researches`),
 cite sources (`cites`), and promote durable convictions back to a notebook `finding`

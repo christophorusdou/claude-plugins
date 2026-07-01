@@ -130,8 +130,26 @@ ids/titles and offer to open or relate them.
 
 ## Tidy (`/sb tidy`)
 
-`bash "$VAULT/scripts/generate-index.sh"`, then review: suggest missing links, re-categorize
-loosely-tagged entries, and flag stale `seed`s (old and never developed) for archive/promote.
+Quick hygiene pass: run `bash "$VAULT/scripts/generate-index.sh"` (rebuild INDEX) and
+`node "$VAULT/web/scripts/lint-vault.mjs"` (deterministic health-check — see `/sb lint`), then review its
+findings, suggest missing links, and re-categorize loosely-tagged entries. For deep whole-vault curation use `/sb maintain`.
+
+## Lint (`/sb lint`)
+
+Deterministic **notebook** health-check (no topic; `/sb lint <topic>` lints a research wiki — see below). The heavy
+lifting is a script, so it's fast and objective and **never mutates** the vault. Pre-flight: clean worktree. Run:
+
+`node "$VAULT/web/scripts/lint-vault.mjs"` — add `--json` to parse, `--seed-months`/`--mature-months` to tune.
+
+It reports by severity:
+- **errors** — schema violations (invalid `type`/`status`/`rel`, missing required fields, malformed `links`) and
+  **dangling links** (`links[].to` with no matching page; targets resolve across notebook + research pages).
+- **warnings** — dangling body `[[wikilinks]]` (code spans ignored), self-links, orphans (no edges in or out), stale `seed`s.
+- **info** — `contradicts` edges to review, `mature` entries long untouched, unlinked same-`category` clusters.
+
+Then **propose fixes and get approval** — like `/sb tidy`/`/sb maintain`, **never auto-apply**: correct an invalid enum,
+drop or repoint a dangling edge, add a load-bearing edge to connect an unlinked cluster, or archive a stale `seed` with a
+dated `## Log` reason. Apply as **one commit**, regenerate `INDEX.md`, never auto-push.
 
 ## Maintenance (`/sb maintain`)
 
