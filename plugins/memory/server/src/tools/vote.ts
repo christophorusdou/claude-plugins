@@ -32,8 +32,9 @@ function vote(id: string, direction: "up" | "down", detail?: string): VoteResult
        WHERE id = ?`
     ).run(scoreDelta, newConfidence, now, now, id);
   } else {
+    // Upvote reactivates a stale/archived memory — it's evidently valuable again.
     db.prepare(
-      "UPDATE memories SET score = score + ?, confidence = ?, updated_at = ? WHERE id = ?"
+      "UPDATE memories SET score = score + ?, confidence = ?, updated_at = ?, lifecycle_state = 'active' WHERE id = ?"
     ).run(scoreDelta, newConfidence, now, id);
   }
 

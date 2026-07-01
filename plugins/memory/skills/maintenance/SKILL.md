@@ -65,13 +65,30 @@ entries that could be merged.
 Report groups with their suggested winners and deletion candidates. Do NOT
 auto-merge — present for user review.
 
-### Phase 4: Summary Report
+### Phase 4: Lifecycle Aging
+
+Call `memory_manage` with `action: "age"` and `dry_run: true` to preview deterministic
+active→stale→archived transitions (aging is reversible — recall and upvote reactivate an entry).
+Present the proposed transitions, then apply with `action: "age"` (omit `dry_run`). Archived entries
+are **kept** (recall ranks them far lower), never deleted. Tune with `stale_days` / `archive_days`.
+
+### Phase 5: Summary Report
 
 Summarize:
-- Contradictions found and auto-downvoted
-- Stale/expiring entries needing review
-- Consolidation groups found
-- Total archive health (entry count, score distribution via `action: "stats"`)
+- Contradictions found and auto-downvoted (Phase 1)
+- Stale/expiring entries needing review (Phase 2)
+- Consolidation groups found (Phase 3)
+- Lifecycle transitions applied (Phase 4)
+- Total archive health via `action: "stats"` (now includes `by_lifecycle`)
+
+### Phase 6: Record & Sync
+
+1. Append one line to the curation ledger `~/.claude-memory/curation-log.jsonl`:
+   `{"date":"YYYY-MM-DD","contradictions":N,"stale":N,"consolidation_groups":N,"aged_stale":N,"aged_archived":N,"actions":"<what you applied>"}`
+2. Stamp the last-curation date (resets the SessionStart nudge):
+   `date +%Y-%m-%d > ~/.claude-memory/last-curation`
+3. Persist + back up: `memory_manage` with `action: "sync", operation: "push"` — commits `memories.jsonl`
+   to `~/.claude-memory/.git` and pushes to the private forgejo remote if configured.
 
 ## Notes
 

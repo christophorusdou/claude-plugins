@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 const MIGRATIONS: Record<number, string[]> = {
   1: [
@@ -72,6 +72,14 @@ const MIGRATIONS: Record<number, string[]> = {
     `DROP TABLE memory_events`,
     `ALTER TABLE memory_events_new RENAME TO memory_events`,
     `CREATE INDEX IF NOT EXISTS idx_events_memory_id ON memory_events(memory_id)`,
+  ],
+
+  5: [
+    // Lifecycle state for the curator: active → stale → archived.
+    // Deterministic, reversible aging (reactivates on use/upvote). Existing rows
+    // default to 'active', so recall behavior is unchanged until the curator ages entries.
+    `ALTER TABLE memories ADD COLUMN lifecycle_state TEXT NOT NULL DEFAULT 'active'`,
+    `CREATE INDEX IF NOT EXISTS idx_memories_lifecycle_state ON memories(lifecycle_state)`,
   ],
 };
 

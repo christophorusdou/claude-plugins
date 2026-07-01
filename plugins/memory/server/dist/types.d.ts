@@ -16,9 +16,12 @@ export interface Memory {
     version_context: string | null;
     valid_until: string | null;
     content_hash: string;
+    lifecycle_state: MemoryLifecycleState;
 }
 export type MemoryCategory = "pattern" | "gotcha" | "preference" | "decision" | "fact" | "debug-insight";
 export type MemorySource = "manual" | "auto-captured" | "imported";
+/** Curator lifecycle: active → stale → archived (reversible; reactivates on use/upvote). */
+export type MemoryLifecycleState = "active" | "stale" | "archived";
 export interface MemoryEvent {
     id: number;
     memory_id: string;
@@ -26,7 +29,7 @@ export interface MemoryEvent {
     detail: string | null;
     created_at: string;
 }
-export type MemoryEventType = "created" | "updated" | "upvoted" | "downvoted" | "retrieved" | "deleted";
+export type MemoryEventType = "created" | "updated" | "upvoted" | "downvoted" | "retrieved" | "deleted" | "aged";
 export interface RecallResult {
     memory: Memory;
     vector_similarity: number;
@@ -46,6 +49,7 @@ export interface MemoryStats {
     by_category: Record<string, number>;
     by_project: Record<string, number>;
     by_source: Record<string, number>;
+    by_lifecycle: Record<string, number>;
     score_distribution: {
         negative: number;
         zero: number;
@@ -81,6 +85,7 @@ export interface MemoryRow {
     version_context: string | null;
     valid_until: string | null;
     content_hash: string;
+    lifecycle_state: string;
 }
 export declare function rowToMemory(row: MemoryRow): Memory;
 //# sourceMappingURL=types.d.ts.map

@@ -3,6 +3,7 @@ export function rowToMemory(row) {
         ...row,
         category: row.category,
         source: row.source,
+        lifecycle_state: row.lifecycle_state,
         tags: JSON.parse(row.tags),
         triggers: JSON.parse(row.triggers),
     };

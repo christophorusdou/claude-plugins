@@ -61,8 +61,8 @@ export async function importFromJsonl(): Promise<{
     }
 
     db.prepare(
-      `INSERT INTO memories (id, content, category, project, tags, triggers, source, source_detail, confidence, score, use_count, created_at, updated_at, last_used_at, content_hash, version_context, valid_until)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO memories (id, content, category, project, tags, triggers, source, source_detail, confidence, score, use_count, created_at, updated_at, last_used_at, content_hash, version_context, valid_until, lifecycle_state)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       memory.id,
       memory.content,
@@ -80,7 +80,8 @@ export async function importFromJsonl(): Promise<{
       memory.last_used_at,
       memory.content_hash,
       memory.version_context ?? null,
-      memory.valid_until ?? null
+      memory.valid_until ?? null,
+      memory.lifecycle_state ?? "active"
     );
 
     // Index in Orama
@@ -146,7 +147,7 @@ export function gitSync(
     execSync("git init", { cwd: dataDir });
     writeFileSync(
       join(dataDir, ".gitignore"),
-      "*.db\n*.db-journal\n*.db-wal\n*.db-shm\nsearch-index.json\n"
+      "*.db\n*.db-journal\n*.db-wal\n*.db-shm\n*.bak\nsearch-index.json\n"
     );
     execSync("git add .gitignore", { cwd: dataDir });
     execSync('git commit -m "Initialize memory repo"', { cwd: dataDir });

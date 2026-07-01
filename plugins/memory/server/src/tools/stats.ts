@@ -40,6 +40,14 @@ export function getStats(): MemoryStats {
     by_source[row.source] = row.count;
   }
 
+  const byLifecycleRows = db
+    .prepare("SELECT lifecycle_state, COUNT(*) as count FROM memories GROUP BY lifecycle_state")
+    .all() as Array<{ lifecycle_state: string; count: number }>;
+  const by_lifecycle: Record<string, number> = {};
+  for (const row of byLifecycleRows) {
+    by_lifecycle[row.lifecycle_state] = row.count;
+  }
+
   const negative = (
     db.prepare("SELECT COUNT(*) as count FROM memories WHERE score < 0").get() as {
       count: number;
@@ -66,6 +74,7 @@ export function getStats(): MemoryStats {
     by_category,
     by_project,
     by_source,
+    by_lifecycle,
     score_distribution: { negative, zero, positive, highly_rated },
   };
 }

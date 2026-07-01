@@ -20,7 +20,8 @@ function vote(id, direction, detail) {
        WHERE id = ?`).run(scoreDelta, newConfidence, now, now, id);
     }
     else {
-        db.prepare("UPDATE memories SET score = score + ?, confidence = ?, updated_at = ? WHERE id = ?").run(scoreDelta, newConfidence, now, id);
+        // Upvote reactivates a stale/archived memory — it's evidently valuable again.
+        db.prepare("UPDATE memories SET score = score + ?, confidence = ?, updated_at = ?, lifecycle_state = 'active' WHERE id = ?").run(scoreDelta, newConfidence, now, id);
     }
     db.prepare("INSERT INTO memory_events(memory_id, event_type, detail, created_at) VALUES (?, ?, ?, ?)").run(id, eventType, detail ?? null, now);
     const updated = db

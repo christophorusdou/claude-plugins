@@ -14,6 +14,7 @@ import { auditMemories } from "./tools/audit.js";
 import { syncMemories } from "./tools/sync.js";
 import { importMemoryMd } from "./tools/import.js";
 import { findConsolidationGroups } from "./tools/consolidate.js";
+import { ageMemories } from "./tools/lifecycle.js";
 import { validateTriggers } from "./retrieval.js";
 import { closeDb } from "./db.js";
 import { getDetectedProject } from "./project-detect.js";
@@ -205,7 +206,7 @@ server.tool("memory_recall", "Search the knowledge archive using semantic + keyw
     };
 });
 // --- memory_manage ---
-server.tool("memory_manage", "Manage the knowledge archive. Actions: update, delete, upvote, downvote, list, stats, cleanup, audit, consolidate, sync, import.", {
+server.tool("memory_manage", "Manage the knowledge archive. Actions: update, delete, upvote, downvote, list, stats, cleanup, audit, consolidate, age, sync, import.", {
     action: z
         .enum([
         "update",
@@ -217,6 +218,7 @@ server.tool("memory_manage", "Manage the knowledge archive. Actions: update, del
         "cleanup",
         "audit",
         "consolidate",
+        "age",
         "sync",
         "import",
     ])
@@ -248,6 +250,9 @@ server.tool("memory_manage", "Manage the knowledge archive. Actions: update, del
     include_expired: z.preprocess(coerceBoolean, z.boolean().optional()).describe("Include expired (for audit, default true)"),
     days_warning: z.preprocess(coerceNumber, z.number().optional()).describe("Days ahead to warn (for audit, default 30)"),
     threshold: z.preprocess(coerceNumber, z.number().min(0.5).max(0.84).optional()).describe("Similarity threshold (for consolidate, default 0.70)"),
+    stale_days: z.preprocess(coerceNumber, z.number().optional()).describe("Age active→stale after N days untouched (for age, default 90)"),
+    archive_days: z.preprocess(coerceNumber, z.number().optional()).describe("Age stale→archived after N days untouched (for age, default 180)"),
+    dry_run: z.preprocess(coerceBoolean, z.boolean().optional()).describe("Preview transitions without applying (for age)"),
     operation: z.enum(["push", "pull", "export", "rebuild"]).optional().describe("Sync operation (for sync)"),
     file_path: z.string().optional().describe("File path (for import)"),
 }, async (args) => {
@@ -303,7 +308,7 @@ server.tool("memory_manage", "Manage the knowledge archive. Actions: update, del
             if (memories.length === 0)
                 return text("No entries found matching filters.");
             const formatted = memories.map((m) => {
-                const meta = [m.category, m.project ? `project:${m.project}` : "global", `score:${m.score}`, `conf:${m.confidence.toFixed(2)}`].join(" | ");
+                const meta = [m.category, m.project ? `project:${m.project}` : "global", `score:${m.score}`, `conf:${m.confidence.toFixed(2)}`, m.lifecycle_state !== "active" ? m.lifecycle_state : null].filter(Boolean).join(" | ");
                 return `[${m.id}] (${meta})\n  ${m.content}`;
             });
             return text(`${memories.length} entries:\n\n${formatted.join("\n\n")}`);
@@ -351,6 +356,17 @@ server.tool("memory_manage", "Manage the knowledge archive. Actions: update, del
                 return `Group ${gi + 1} (${g.members.length} entries, avg similarity: ${g.avg_similarity.toFixed(3)}):\n${lines.join("\n")}`;
             });
             return text(`${groups.length} consolidation groups found:\n\n${formatted.join("\n\n")}\n\nTo merge: update winner with consolidated content, delete the rest.`);
+        }
+        case "age": {
+            const r = ageMemories({
+                stale_days: args.stale_days,
+                archive_days: args.archive_days,
+                dry_run: args.dry_run,
+            });
+            const fmt = (arr) => arr.length ? arr.map((e) => `  [${e.id}] ${e.reason}\n    ${e.content}`).join("\n") : "  (none)";
+            const verb = r.dry_run ? "Would transition (dry run)" : "Transitioned";
+            return text(`${verb}:\n\n→ stale (${r.to_stale.length}):\n${fmt(r.to_stale)}\n\n→ archived (${r.to_archived.length}):\n${fmt(r.to_archived)}` +
+                (r.dry_run ? "\n\nRun without dry_run to apply." : ""));
         }
         case "sync": {
             if (!args.operation)

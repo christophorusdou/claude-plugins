@@ -16,6 +16,7 @@ export interface Memory {
   version_context: string | null;
   valid_until: string | null;
   content_hash: string;
+  lifecycle_state: MemoryLifecycleState;
 }
 
 export type MemoryCategory =
@@ -27,6 +28,9 @@ export type MemoryCategory =
   | "debug-insight";
 
 export type MemorySource = "manual" | "auto-captured" | "imported";
+
+/** Curator lifecycle: active → stale → archived (reversible; reactivates on use/upvote). */
+export type MemoryLifecycleState = "active" | "stale" | "archived";
 
 export interface MemoryEvent {
   id: number;
@@ -42,7 +46,8 @@ export type MemoryEventType =
   | "upvoted"
   | "downvoted"
   | "retrieved"
-  | "deleted";
+  | "deleted"
+  | "aged";
 
 export interface RecallResult {
   memory: Memory;
@@ -65,6 +70,7 @@ export interface MemoryStats {
   by_category: Record<string, number>;
   by_project: Record<string, number>;
   by_source: Record<string, number>;
+  by_lifecycle: Record<string, number>;
   score_distribution: {
     negative: number;
     zero: number;
@@ -103,6 +109,7 @@ export interface MemoryRow {
   version_context: string | null;
   valid_until: string | null;
   content_hash: string;
+  lifecycle_state: string;
 }
 
 export function rowToMemory(row: MemoryRow): Memory {
@@ -110,6 +117,7 @@ export function rowToMemory(row: MemoryRow): Memory {
     ...row,
     category: row.category as MemoryCategory,
     source: row.source as MemorySource,
+    lifecycle_state: row.lifecycle_state as MemoryLifecycleState,
     tags: JSON.parse(row.tags),
     triggers: JSON.parse(row.triggers),
   };

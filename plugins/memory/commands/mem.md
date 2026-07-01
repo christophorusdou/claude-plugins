@@ -15,6 +15,8 @@ Memory management command. Usage:
 - `/mem cleanup` — Find low-value memories to prune
 - `/mem consolidate [--threshold=0.70] [--project=X]` — Find groups of similar memories to merge
 - `/mem audit [--days=N]` — Find expired, near-expiry, and low-confidence memories
+- `/mem age [--dry-run]` — Age memories active→stale→archived (deterministic, reversible; reactivates on use)
+- `/mem curate` — Full maintenance pass (diff → audit → consolidate → age → ledger → sync) via the mem-maintain skill
 - `/mem sync [push|pull]` — Sync via git (default: push)
 - `/mem import <path>` — Import from a MEMORY.md file
 
@@ -34,5 +36,7 @@ When the user invokes `/mem`, parse their intent and call the appropriate MCP to
 10. **consolidate**: Call `memory_consolidate`. If `--threshold=N` specified, pass `threshold: N`. If `--project=X` specified, pass `project: X`. Present groups and guide the user through the merge workflow (update winner, delete rest).
 11. **sync**: Call `memory_sync` with the operation.
 12. **import**: Call `memory_import` with the file path.
+13. **age**: Call `memory_manage` with `action:"age"`. If `--dry-run`, pass `dry_run:true` (preview, no changes). Present the proposed active→stale→archived transitions.
+14. **curate**: Run the **mem-maintain** skill — the full maintenance pass (diff built-in memory → audit → consolidate → age → write audit ledger + last-curation timestamp → sync push). Get approval before any merges/deletes.
 
 If no subcommand is given, show this help.

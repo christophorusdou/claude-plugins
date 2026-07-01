@@ -23,6 +23,13 @@ export function getStats() {
     for (const row of bySourceRows) {
         by_source[row.source] = row.count;
     }
+    const byLifecycleRows = db
+        .prepare("SELECT lifecycle_state, COUNT(*) as count FROM memories GROUP BY lifecycle_state")
+        .all();
+    const by_lifecycle = {};
+    for (const row of byLifecycleRows) {
+        by_lifecycle[row.lifecycle_state] = row.count;
+    }
     const negative = db.prepare("SELECT COUNT(*) as count FROM memories WHERE score < 0").get().count;
     const zero = db.prepare("SELECT COUNT(*) as count FROM memories WHERE score = 0").get().count;
     const positive = db.prepare("SELECT COUNT(*) as count FROM memories WHERE score > 0 AND score < 5").get().count;
@@ -32,6 +39,7 @@ export function getStats() {
         by_category,
         by_project,
         by_source,
+        by_lifecycle,
         score_distribution: { negative, zero, positive, highly_rated },
     };
 }

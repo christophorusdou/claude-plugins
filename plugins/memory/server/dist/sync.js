@@ -46,8 +46,8 @@ export async function importFromJsonl() {
             skipped++;
             continue;
         }
-        db.prepare(`INSERT INTO memories (id, content, category, project, tags, triggers, source, source_detail, confidence, score, use_count, created_at, updated_at, last_used_at, content_hash, version_context, valid_until)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(memory.id, memory.content, memory.category, memory.project, JSON.stringify(memory.tags), JSON.stringify(memory.triggers), memory.source, memory.source_detail, memory.confidence, memory.score, memory.use_count, memory.created_at, memory.updated_at, memory.last_used_at, memory.content_hash, memory.version_context ?? null, memory.valid_until ?? null);
+        db.prepare(`INSERT INTO memories (id, content, category, project, tags, triggers, source, source_detail, confidence, score, use_count, created_at, updated_at, last_used_at, content_hash, version_context, valid_until, lifecycle_state)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(memory.id, memory.content, memory.category, memory.project, JSON.stringify(memory.tags), JSON.stringify(memory.triggers), memory.source, memory.source_detail, memory.confidence, memory.score, memory.use_count, memory.created_at, memory.updated_at, memory.last_used_at, memory.content_hash, memory.version_context ?? null, memory.valid_until ?? null, memory.lifecycle_state ?? "active");
         // Index in Orama
         const embedding = await embed(memory.content);
         await indexMemory(memory.id, memory.content, embedding, memory.category, memory.project ?? "");
@@ -85,7 +85,7 @@ export function gitSync(operation) {
     // Initialize git repo if needed
     if (!existsSync(join(dataDir, ".git"))) {
         execSync("git init", { cwd: dataDir });
-        writeFileSync(join(dataDir, ".gitignore"), "*.db\n*.db-journal\n*.db-wal\n*.db-shm\nsearch-index.json\n");
+        writeFileSync(join(dataDir, ".gitignore"), "*.db\n*.db-journal\n*.db-wal\n*.db-shm\n*.bak\nsearch-index.json\n");
         execSync("git add .gitignore", { cwd: dataDir });
         execSync('git commit -m "Initialize memory repo"', { cwd: dataDir });
     }

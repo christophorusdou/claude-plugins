@@ -145,9 +145,16 @@ export async function recall(opts: RetrievalOptions): Promise<RecallResult[]> {
       }
     }
 
+    // Lifecycle multiplier: the curator ages unused/negative memories down.
+    // Defaults to 1.0 (active), so recall is unchanged until aging runs.
+    const stateMultiplier =
+      memory.lifecycle_state === "archived" ? 0.1 : memory.lifecycle_state === "stale" ? 0.4 : 1.0;
+
     // Combine: 0.7 * orama + 0.15 * effective_rank + scope + trigger
     const finalScore =
-      (sr.score * 0.7 + normalizedRank * 0.15 + scopeBoost + triggerBoost) * freshnessMultiplier;
+      (sr.score * 0.7 + normalizedRank * 0.15 + scopeBoost + triggerBoost) *
+      freshnessMultiplier *
+      stateMultiplier;
 
     results.push({
       memory,
@@ -175,11 +182,22 @@ export async function recall(opts: RetrievalOptions): Promise<RecallResult[]> {
   const logStmt = db.prepare(
     `INSERT INTO memory_events(memory_id, event_type, created_at) VALUES (?, 'retrieved', ?)`
   );
+  // Reactivate on use: a recalled 'stale' memory is evidently still useful → back to active.
+  const reactivateStmt = db.prepare(
+    `UPDATE memories SET lifecycle_state = 'active' WHERE id = ? AND lifecycle_state = 'stale'`
+  );
+  const reactivateLog = db.prepare(
+    `INSERT INTO memory_events(memory_id, event_type, detail, created_at) VALUES (?, 'aged', 'stale→active (reused)', ?)`
+  );
   const nowIso = new Date().toISOString();
   const updateBatch = db.transaction(() => {
     for (const r of results.slice(0, limit)) {
       updateStmt.run(nowIso, r.memory.id);
       logStmt.run(r.memory.id, nowIso);
+      if (r.memory.lifecycle_state === "stale") {
+        reactivateStmt.run(r.memory.id);
+        reactivateLog.run(r.memory.id, nowIso);
+      }
     }
   });
   updateBatch();
