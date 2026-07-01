@@ -21,7 +21,7 @@ Use this reference when planning where and how to deploy a new project on the ho
 
 | Resource | Specs | Running Services | Best For |
 |----------|-------|-----------------|----------|
-| **N100** (always-on) | 4C Intel N100, 32GB DDR5, 488GB NVMe | 10 Docker stacks, 15+ containers, Postgres 16 (6 DBs), Redis 7.4 | Always-on APIs, web services, Git/CI |
+| **N100** (always-on) | 4C Intel N100, 32GB DDR5, 488GB NVMe | Multi-stack Docker host, Postgres 16, Redis 7.4, Forgejo, CloudBeaver/Helix | Always-on APIs, web services, Git/CI, browser DB admin |
 | **Mac Mini M4** (sleeps 8pm-8am) | 8C ARM64, 16GB, 256GB SSD | Prometheus, Grafana, Uptime Kuma, OTel Collector, Traefik, Forgejo macOS runner | Monitoring, dashboards, macOS CI (Swift/xcodebuild) |
 | **TrueNAS** (on-demand WoL) | 20C i7-14700K, 64GB DDR5, 21TB RAIDZ1 | SMB, NFS shares | Storage, backups, media serving |
 | **L40S Remote** (shared server) | 8C CPU, 128GB RAM, NVIDIA L40S 48GB VRAM, 3.5TB (2.3TB free) | Speaches STT (:8000), Qwen3 TTS (:8100), Ollama (:11434/:11435), TensorBoard (:6006), Dapr, K8s (kind), Redis 6 | GPU/ML training, TTS/STT, LLM inference, AI experiments |
@@ -35,6 +35,7 @@ Use this reference when planning where and how to deploy a new project on the ho
 | **Zitadel OIDC** | SSO at auth.cdrift.com | Create OAuth2 app in Zitadel admin |
 | **Forgejo** | Git + CI/CD + container registry | Push code, add workflow in `.forgejo/workflows/` |
 | **Caddy + Cloudflare Tunnel** | Reverse proxy + encrypted ingress | Add Caddyfile route + tunnel config |
+| **Cloudflare Access** | Edge auth gate for sensitive tools | Use with Zitadel SSO before exposing admin surfaces like Helix |
 | **Cloudflare Pages** | Static frontend hosting | Deploy via `wrangler pages deploy` |
 
 ## Decision Trees
@@ -47,6 +48,7 @@ Use this reference when planning where and how to deploy a new project on the ho
 | Monitoring / dashboards | **Mac Mini M4** | Grafana/Prometheus already there |
 | Storage / NAS | **TrueNAS** | On-demand WoL, 21TB RAIDZ1, SMB/NFS |
 | Public domain | **Cloudflare Tunnel → Caddy** | Pattern: `<name>.cdrift.com` |
+| Sensitive admin UI | **Cloudflare Access -> direct cloudflared route** | Pattern used by Helix: avoid Caddy Host-header bypass on LAN/Tailscale |
 | Static frontend | **Cloudflare Pages** | Free tier, automatic deploys |
 | Auth / SSO | **Zitadel OIDC** | Already running at auth.cdrift.com |
 | Database | **Shared Postgres 16** | New DB on same instance |

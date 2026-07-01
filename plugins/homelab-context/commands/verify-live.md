@@ -39,7 +39,9 @@ Compare the output against the stack documentation in `plugins/homelab-context/s
 - WARNING: A container shows a non-healthy or restarting status
 - INFO: Container is running and matches documentation
 
-Documented stacks (10 total): shared, auth, ingress, forgejo, ticket-pointing, record-keeper, tolgee, claude-dash, homepage, vidarchive
+Documented core stacks: shared, auth, ingress, forgejo, ticket-pointing, record-keeper, tolgee, claude-dash, homepage, vidarchive, mediavault, helix.
+
+Known additional live app stacks may include personalhistorian, opportunity-radar, and interior-design. Treat them as INFO unless the user asks to fully reconcile those stacks too.
 
 ### Check 2: Databases vs Documented
 
@@ -49,7 +51,10 @@ Run on N100:
 ssh n100 "docker exec shared-postgres-1 psql -U postgres -c '\l' --no-align"
 ```
 
-Compare the list of databases against the six documented databases: `ticket_pointing`, `zitadel`, `forgejo`, `record_keeper`, `tolgee`, `claude_dash`.
+Compare the list of databases against the documented core and live app databases:
+
+- Core db-init databases: `ticket_pointing`, `zitadel`, `forgejo`, `record_keeper`, `tolgee`, `claude_dash`
+- Known live app/manual databases: `mediavault`, `personal_historian`, `interior_design`, `opp_radar`
 
 **Flag:**
 - ERROR: A documented database is missing from Postgres
@@ -61,22 +66,25 @@ Compare the list of databases against the six documented databases: `ticket_poin
 Run on N100:
 
 ```bash
-ssh n100 "cat ~/homelab/docker-compose/networking/ingress/Caddyfile"
+ssh n100 "cat /opt/apps/ingress/Caddyfile"
+ssh n100 "cat /opt/apps/ingress/cloudflared/config.yml"
 ```
 
 Extract all host matchers (lines like `pointingapi.cdrift.com { ... }`) and compare against the domains table in `plugins/homelab-context/CLAUDE.md`.
 
-Documented domains (7 total):
-- pointing.cdrift.com (Cloudflare Pages — no Caddy route expected)
-- pointingapi.cdrift.com → server:3001
-- auth.cdrift.com → zitadel:8080
-- git.cdrift.com → forgejo:3000
-- vault.cdrift.com → recordkeeper:8080
-- tolgee.cdrift.com → tolgee:8080
-- vidarchive.cdrift.com → vidarchive:5000
+Documented domains:
+- pointing.cdrift.com (Cloudflare Pages - no Caddy route expected)
+- pointingapi.cdrift.com -> server:3001
+- auth.cdrift.com -> zitadel:8080
+- git.cdrift.com -> forgejo:3000
+- vault.cdrift.com -> recordkeeper:8080
+- tolgee.cdrift.com -> tolgee:8080
+- vidarchive.cdrift.com -> vidarchive:5000
+- helix.cdrift.com -> cloudflared direct route to cloudbeaver:8978, not Caddy
 
 **Flag:**
 - ERROR: A documented domain (except pointing.cdrift.com) has no Caddy route
+- INFO: `helix.cdrift.com` has no Caddy route but has a direct cloudflared route to `cloudbeaver:8978`
 - WARNING: A Caddy route exists for a domain not in the plugin docs
 - WARNING: A route's upstream port or service name differs from documentation
 - INFO: All documented routes are present and correct
@@ -89,7 +97,7 @@ Run on N100:
 ssh n100 "docker network inspect shared --format '{{range .Containers}}{{.Name}} {{end}}'"
 ```
 
-Verify that all service containers from the shared, auth, ingress, forgejo, ticket-pointing, record-keeper, tolgee, claude-dash, homepage, and vidarchive stacks are connected to the `shared` Docker network.
+Verify that all service containers from the shared, auth, ingress, forgejo, ticket-pointing, record-keeper, tolgee, claude-dash, homepage, vidarchive, mediavault, and helix stacks are connected to the `shared` Docker network where required.
 
 **Flag:**
 - ERROR: A documented service container is not on the shared network
@@ -114,7 +122,7 @@ Generated: [timestamp from `date` on N100]
 [ERROR/WARNING/INFO items, or "All containers running as documented."]
 
 ### Check 2: Databases
-[ERROR/WARNING/INFO items, or "All 6 databases present."]
+[ERROR/WARNING/INFO items, or "All documented databases present."]
 
 ### Check 3: Caddy Routes
 [ERROR/WARNING/INFO items, or "All routes match documentation."]

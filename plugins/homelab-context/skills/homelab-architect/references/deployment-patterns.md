@@ -71,3 +71,39 @@
 | CI | Forgejo Actions | Push to main → pytest → Docker build → push to Forgejo registry |
 
 Key pattern: stage downloads to fast local disk, then batch-sync to NAS on a schedule. Keeps NAS powered off most of the time (WoL on demand).
+
+## Pattern 7: Sensitive Admin UI Behind Cloudflare Access
+
+**Example:** Helix CloudBeaver (`helix.cdrift.com`)
+
+| Component | Where | How |
+|-----------|-------|-----|
+| Admin web app | N100 Docker stack | Single container on `shared`, no host-published ports |
+| Edge auth | Cloudflare Access | Zitadel SSO policy limited to the intended admin user |
+| App auth | App-local login | Second layer after Cloudflare Access |
+| Domain | Cloudflare Tunnel | Direct route to service alias, not Caddy |
+| Persistent data | `/opt/apps/<name>/workspace` bind mount | Included in TrueNAS stack-config backup |
+
+Use this pattern for database/admin/security-sensitive tools where a local LAN or Tailscale client must not be able to bypass Cloudflare Access by sending a spoofed `Host` header to N100's published Caddy port.
+
+Helix route shape:
+
+```yaml
+ingress:
+  - hostname: helix.cdrift.com
+    service: http://cloudbeaver:8978
+```
+
+Verification:
+
+```bash
+curl -I https://helix.cdrift.com
+curl -I -H 'Host: helix.cdrift.com' http://192.168.130.160/
+ssh n100 "docker inspect helix-cloudbeaver --format '{{json .NetworkSettings.Ports}}'"
+```
+
+Expected:
+
+- Public unauthenticated curl returns Cloudflare Access `302`.
+- Local Caddy Host-header probe returns Caddy `404`.
+- Docker inspect shows `{"8978/tcp":null}`.

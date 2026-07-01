@@ -32,7 +32,7 @@ claude plugin add --from christophorusdou/claude-plugins --name homelab-context
 
 ## Infrastructure Overview
 
-- **N100** (always-on): 10 Docker stacks, Postgres 16, Redis 7.4, Forgejo Git/CI
+- **N100** (always-on): multi-stack Docker host, Postgres 16, Redis 7.4, Forgejo Git/CI, Helix CloudBeaver SQL client
 - **Mac Mini M4** (8pm-8am sleep): Prometheus, Grafana, Uptime Kuma, macOS CI runner
 - **TrueNAS** (on-demand WoL): 21TB RAIDZ1, backups, media storage
 - **L40S Remote** (shared GPU): NVIDIA L40S 48GB, Ollama, TTS/STT, ML training
