@@ -1,5 +1,4 @@
 {
-  "description": "AI efficiency advisor hooks — nudge when overdue for check-in",
   "hooks": {
     "SessionStart": [
       {

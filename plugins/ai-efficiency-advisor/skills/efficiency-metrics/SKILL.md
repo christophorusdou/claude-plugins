@@ -1,6 +1,7 @@
 ---
 name: efficiency-metrics
 description: This skill should be used when analyzing AI coding tool efficiency, interpreting usage metrics like cost-per-session or cost-per-line, understanding token ratios, detecting anti-patterns (thrashing, runaway sessions, context stuffing), reviewing feature adoption status, or mapping data sources for Claude Code usage analysis. Relevant when discussing spending, efficiency trends, wasted sessions, model selection, or context exhaustion.
+effort: low
 ---
 
 # Efficiency Metrics

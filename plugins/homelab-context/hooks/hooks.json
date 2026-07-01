@@ -1,5 +1,4 @@
 {
-  "description": "Homelab infrastructure protection hooks",
   "hooks": {
     "PreToolUse": [
       {

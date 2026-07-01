@@ -4,6 +4,7 @@ description: >-
   Cross-project knowledge archive — searchable data lake and fallback for
   built-in memory. Use for cross-project search, past debugging insights,
   architectural decisions, and patterns.
+effort: low
 ---
 
 # Knowledge Archive

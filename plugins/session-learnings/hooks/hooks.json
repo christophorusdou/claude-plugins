@@ -1,5 +1,4 @@
 {
-  "description": "Capture non-obvious learnings before ending substantive sessions",
   "hooks": {
     "Stop": [
       {

@@ -5,6 +5,7 @@ description: >-
   hook blocks to persist non-obvious insights, debugging discoveries, architectural
   decisions, or gotchas. Also invoked when the user asks to "save what we learned",
   "capture session insights", or "remember this for next time".
+effort: low
 ---
 
 # Capture Learnings

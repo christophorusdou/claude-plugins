@@ -1,6 +1,7 @@
 ---
 name: learnings
 description: Capture or review session learnings
+effort: low
 ---
 
 # /learnings

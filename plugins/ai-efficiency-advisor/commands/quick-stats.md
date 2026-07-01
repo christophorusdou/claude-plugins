@@ -1,5 +1,6 @@
 ---
 description: Quick AI usage stats for the last 7 days — cost, sessions, top projects, anti-patterns
+effort: low
 allowed-tools: ["Read", "Glob", "Grep", "Bash"]
 ---
 
