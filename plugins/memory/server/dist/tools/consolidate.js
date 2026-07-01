@@ -10,8 +10,8 @@ export async function findConsolidationGroups(opts) {
     const db = getDb();
     const threshold = opts.threshold ?? 0.70;
     const groupLimit = opts.limit ?? 10;
-    // Load up to 200 memories, sorted by score DESC
-    const conditions = [];
+    // Load up to 200 memories, sorted by score DESC (merged tombstones never regroup)
+    const conditions = ["lifecycle_state != 'merged'"];
     const params = [];
     if (opts.project !== undefined) {
         if (opts.project === null) {
@@ -22,7 +22,7 @@ export async function findConsolidationGroups(opts) {
             params.push(opts.project);
         }
     }
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const where = `WHERE ${conditions.join(" AND ")}`;
     const rows = db
         .prepare(`SELECT * FROM memories ${where}
        ORDER BY score DESC, use_count DESC

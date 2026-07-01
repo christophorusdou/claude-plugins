@@ -61,8 +61,8 @@ export async function importFromJsonl(): Promise<{
     }
 
     db.prepare(
-      `INSERT INTO memories (id, content, category, project, tags, triggers, source, source_detail, confidence, score, use_count, created_at, updated_at, last_used_at, content_hash, version_context, valid_until, lifecycle_state)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO memories (id, content, category, project, tags, triggers, source, source_detail, confidence, score, use_count, created_at, updated_at, last_used_at, content_hash, version_context, valid_until, lifecycle_state, merged_into)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       memory.id,
       memory.content,
@@ -81,7 +81,8 @@ export async function importFromJsonl(): Promise<{
       memory.content_hash,
       memory.version_context ?? null,
       memory.valid_until ?? null,
-      memory.lifecycle_state ?? "active"
+      memory.lifecycle_state ?? "active",
+      memory.merged_into ?? null
     );
 
     // Index in Orama

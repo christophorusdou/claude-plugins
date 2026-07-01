@@ -62,8 +62,11 @@ near-expiry, suggest review.
 Call `memory_manage` with `action: "consolidate"` to find groups of similar
 entries that could be merged.
 
-Report groups with their suggested winners and deletion candidates. Do NOT
-auto-merge — present for user review.
+Report groups with their suggested winners and merge candidates. Do NOT
+auto-merge — present for user review. For each approved merge: update the winner
+with the consolidated content, then call `memory_manage` with `action: "merge"`,
+`id: <loser>`, `merged_into: <winner>` — **never delete losers**; the merge action
+keeps a recall-excluded tombstone that preserves provenance.
 
 ### Phase 4: Lifecycle Aging
 
@@ -81,14 +84,14 @@ Summarize:
 - Lifecycle transitions applied (Phase 4)
 - Total archive health via `action: "stats"` (now includes `by_lifecycle`)
 
-### Phase 6: Record & Sync
+### Phase 6: Sync
 
-1. Append one line to the curation ledger `~/.claude-memory/curation-log.jsonl`:
-   `{"date":"YYYY-MM-DD","contradictions":N,"stale":N,"consolidation_groups":N,"aged_stale":N,"aged_archived":N,"actions":"<what you applied>"}`
-2. Stamp the last-curation date (resets the SessionStart nudge):
-   `date +%Y-%m-%d > ~/.claude-memory/last-curation`
-3. Persist + back up: `memory_manage` with `action: "sync", operation: "push"` — commits `memories.jsonl`
-   to `~/.claude-memory/.git` and pushes to the private forgejo remote if configured.
+`memory_manage` with `action: "sync", operation: "push"` — commits `memories.jsonl` to
+`~/.claude-memory/.git` and pushes to the private forgejo remote if configured.
+
+(No manual bookkeeping: the ledger `~/.claude-memory/curation-log.jsonl` and the
+`last-curation` stamp are written **server-side** by the Phase 4 age apply — the nudge
+resets automatically. Deletes and merges also self-record to the ledger.)
 
 ## Notes
 

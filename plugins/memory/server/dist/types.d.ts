@@ -17,11 +17,16 @@ export interface Memory {
     valid_until: string | null;
     content_hash: string;
     lifecycle_state: MemoryLifecycleState;
+    merged_into: string | null;
 }
 export type MemoryCategory = "pattern" | "gotcha" | "preference" | "decision" | "fact" | "debug-insight";
 export type MemorySource = "manual" | "auto-captured" | "imported";
-/** Curator lifecycle: active → stale → archived (reversible; reactivates on use/upvote). */
-export type MemoryLifecycleState = "active" | "stale" | "archived";
+/**
+ * Curator lifecycle: active → stale → archived (reversible; reactivates on use/upvote).
+ * 'merged' is a terminal tombstone: absorbed into another memory (merged_into), excluded
+ * from recall entirely, kept for provenance and sync.
+ */
+export type MemoryLifecycleState = "active" | "stale" | "archived" | "merged";
 export interface MemoryEvent {
     id: number;
     memory_id: string;
@@ -29,7 +34,7 @@ export interface MemoryEvent {
     detail: string | null;
     created_at: string;
 }
-export type MemoryEventType = "created" | "updated" | "upvoted" | "downvoted" | "retrieved" | "deleted" | "aged";
+export type MemoryEventType = "created" | "updated" | "upvoted" | "downvoted" | "retrieved" | "deleted" | "aged" | "merged";
 export interface RecallResult {
     memory: Memory;
     vector_similarity: number;
@@ -86,6 +91,7 @@ export interface MemoryRow {
     valid_until: string | null;
     content_hash: string;
     lifecycle_state: string;
+    merged_into: string | null;
 }
 export declare function rowToMemory(row: MemoryRow): Memory;
 //# sourceMappingURL=types.d.ts.map

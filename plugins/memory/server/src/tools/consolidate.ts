@@ -21,8 +21,8 @@ export async function findConsolidationGroups(
   const threshold = opts.threshold ?? 0.70;
   const groupLimit = opts.limit ?? 10;
 
-  // Load up to 200 memories, sorted by score DESC
-  const conditions: string[] = [];
+  // Load up to 200 memories, sorted by score DESC (merged tombstones never regroup)
+  const conditions: string[] = ["lifecycle_state != 'merged'"];
   const params: (string | number)[] = [];
 
   if (opts.project !== undefined) {
@@ -34,7 +34,7 @@ export async function findConsolidationGroups(
     }
   }
 
-  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const where = `WHERE ${conditions.join(" AND ")}`;
   const rows = db
     .prepare(
       `SELECT * FROM memories ${where}

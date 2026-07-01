@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 const MIGRATIONS: Record<number, string[]> = {
   1: [
@@ -80,6 +80,13 @@ const MIGRATIONS: Record<number, string[]> = {
     // default to 'active', so recall behavior is unchanged until the curator ages entries.
     `ALTER TABLE memories ADD COLUMN lifecycle_state TEXT NOT NULL DEFAULT 'active'`,
     `CREATE INDEX IF NOT EXISTS idx_memories_lifecycle_state ON memories(lifecycle_state)`,
+  ],
+
+  6: [
+    // Consolidation tombstones: a merged loser keeps its row (lifecycle_state='merged',
+    // merged_into=<winner id>) instead of being hard-deleted. Preserves provenance
+    // (v4's ON DELETE CASCADE erases a deleted row's events) and gives sync tombstones.
+    `ALTER TABLE memories ADD COLUMN merged_into TEXT`,
   ],
 };
 

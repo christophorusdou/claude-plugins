@@ -1,12 +1,18 @@
 import { getDb } from "../db.js";
 import { removeFromIndex, saveSearchIndex } from "../search-index.js";
+import { appendLedger } from "./lifecycle.js";
 export async function deleteMemory(id) {
     const db = getDb();
     const now = new Date().toISOString();
-    const existing = db.prepare("SELECT id FROM memories WHERE id = ?").get(id);
+    const existing = db
+        .prepare("SELECT id, content FROM memories WHERE id = ?")
+        .get(id);
     if (!existing)
         return false;
-    // Log deletion event before deleting
+    // The 'deleted' event below is cascade-erased with the row (v4 FK ON DELETE CASCADE),
+    // so the ledger file is the durable record of what was deleted and when.
+    // Prefer action:"merge" for consolidation — delete is for genuinely unwanted content.
+    appendLedger({ action: "delete", id, content: existing.content.slice(0, 120) });
     db.prepare("INSERT INTO memory_events(memory_id, event_type, created_at) VALUES (?, 'deleted', ?)").run(id, now);
     // Remove from Orama index
     await removeFromIndex(id);

@@ -14,8 +14,9 @@ Memory management command. Usage:
 - `/mem stats` — Show memory statistics
 - `/mem cleanup` — Find low-value memories to prune
 - `/mem consolidate [--threshold=0.70] [--project=X]` — Find groups of similar memories to merge
+- `/mem merge <id> --into=<winner-id>` — Absorb a memory into another (keeps a tombstone; never hard-deletes)
 - `/mem audit [--days=N]` — Find expired, near-expiry, and low-confidence memories
-- `/mem age [--dry-run]` — Age memories active→stale→archived (deterministic, reversible; reactivates on use)
+- `/mem age [--dry-run]` — Age memories active→stale→archived (deterministic, reversible; reactivates on use; records the curation ledger + stamp)
 - `/mem curate` — Full maintenance pass (diff → audit → consolidate → age → ledger → sync) via the mem-maintain skill
 - `/mem sync [push|pull]` — Sync via git (default: push)
 - `/mem import <path>` — Import from a MEMORY.md file
@@ -33,10 +34,11 @@ When the user invokes `/mem`, parse their intent and call the appropriate MCP to
 7. **stats**: Call `memory_stats`.
 8. **cleanup**: Call `memory_cleanup`, then present candidates and ask which to delete.
 9. **audit**: Call `memory_audit`. If `--days=N` specified, pass `days_warning: N`. Present candidates and suggest actions (delete, update, extend).
-10. **consolidate**: Call `memory_consolidate`. If `--threshold=N` specified, pass `threshold: N`. If `--project=X` specified, pass `project: X`. Present groups and guide the user through the merge workflow (update winner, delete rest).
+10. **consolidate**: Call `memory_consolidate`. If `--threshold=N` specified, pass `threshold: N`. If `--project=X` specified, pass `project: X`. Present groups and guide the user through the merge workflow: update the winner with consolidated content, then `memory_manage action:"merge"` each loser with `merged_into: <winner id>` — never delete losers (tombstones keep provenance and sync-safety).
 11. **sync**: Call `memory_sync` with the operation.
 12. **import**: Call `memory_import` with the file path.
-13. **age**: Call `memory_manage` with `action:"age"`. If `--dry-run`, pass `dry_run:true` (preview, no changes). Present the proposed active→stale→archived transitions.
-14. **curate**: Run the **mem-maintain** skill — the full maintenance pass (diff built-in memory → audit → consolidate → age → write audit ledger + last-curation timestamp → sync push). Get approval before any merges/deletes.
+13. **age**: Call `memory_manage` with `action:"age"`. If `--dry-run`, pass `dry_run:true` (preview, no changes). Present the proposed active→stale→archived transitions. A non-dry-run apply records the curation ledger + last-curation stamp server-side.
+14. **merge**: Call `memory_manage` with `action:"merge"`, `id: <loser>`, `merged_into: <winner>`. Confirm with the user first.
+15. **curate**: Run the **mem-maintain** skill — the full maintenance pass (diff built-in memory → audit → consolidate → age → report → sync push). Get approval before any merges/deletes.
 
 If no subcommand is given, show this help.

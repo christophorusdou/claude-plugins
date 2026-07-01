@@ -10,7 +10,8 @@ export function auditMemories(opts = {}) {
     if (includeExpired) {
         const expired = db
             .prepare(`SELECT * FROM memories
-         WHERE valid_until IS NOT NULL AND valid_until < datetime('now')
+         WHERE valid_until IS NOT NULL AND datetime(valid_until) < datetime('now')
+           AND lifecycle_state != 'merged'
          ORDER BY valid_until ASC
          LIMIT ?`)
             .all(limit);
@@ -26,8 +27,9 @@ export function auditMemories(opts = {}) {
     const nearExpiry = db
         .prepare(`SELECT * FROM memories
        WHERE valid_until IS NOT NULL
-         AND valid_until >= datetime('now')
-         AND valid_until < ?
+         AND datetime(valid_until) >= datetime('now')
+         AND datetime(valid_until) < datetime(?)
+         AND lifecycle_state != 'merged'
        ORDER BY valid_until ASC
        LIMIT ?`)
         .all(futureDate, limit);
@@ -42,7 +44,7 @@ export function auditMemories(opts = {}) {
     // Heavily downvoted (low confidence, likely stale)
     const lowConfidence = db
         .prepare(`SELECT * FROM memories
-       WHERE confidence < 0.3
+       WHERE confidence < 0.3 AND lifecycle_state != 'merged'
        ORDER BY confidence ASC
        LIMIT ?`)
         .all(limit);

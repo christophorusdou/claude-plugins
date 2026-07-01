@@ -112,6 +112,10 @@ export async function recall(opts: RetrievalOptions): Promise<RecallResult[]> {
     const memory = memoriesById.get(sr.memory_id);
     if (!memory) continue;
 
+    // Merged tombstones are excluded from recall entirely (they're also removed from
+    // the search index at merge time; this is defense in depth for stale indexes).
+    if (memory.lifecycle_state === "merged") continue;
+
     if (min_score !== undefined && memory.score < min_score) continue;
 
     // Effective rank: score + ln(use_count + 1) - 0.01 * days_since_last_used
@@ -183,6 +187,8 @@ export async function recall(opts: RetrievalOptions): Promise<RecallResult[]> {
     `INSERT INTO memory_events(memory_id, event_type, created_at) VALUES (?, 'retrieved', ?)`
   );
   // Reactivate on use: a recalled 'stale' memory is evidently still useful → back to active.
+  // Deliberately asymmetric: 'archived' does NOT reactivate on recall (it was buried by
+  // prolonged disuse and still ranks at 0.1×) — only an explicit upvote revives it.
   const reactivateStmt = db.prepare(
     `UPDATE memories SET lifecycle_state = 'active' WHERE id = ? AND lifecycle_state = 'stale'`
   );

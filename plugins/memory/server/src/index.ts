@@ -14,7 +14,7 @@ import { auditMemories } from "./tools/audit.js";
 import { syncMemories } from "./tools/sync.js";
 import { importMemoryMd } from "./tools/import.js";
 import { findConsolidationGroups } from "./tools/consolidate.js";
-import { ageMemories } from "./tools/lifecycle.js";
+import { ageMemories, mergeMemory } from "./tools/lifecycle.js";
 import { validateTriggers } from "./retrieval.js";
 import { closeDb } from "./db.js";
 import { getDetectedProject } from "./project-detect.js";
@@ -233,7 +233,7 @@ server.tool(
 // --- memory_manage ---
 server.tool(
   "memory_manage",
-  "Manage the knowledge archive. Actions: update, delete, upvote, downvote, list, stats, cleanup, audit, consolidate, age, sync, import.",
+  "Manage the knowledge archive. Actions: update, delete, upvote, downvote, list, stats, cleanup, audit, consolidate, age, merge, sync, import.",
   {
     action: z
       .enum([
@@ -247,6 +247,7 @@ server.tool(
         "audit",
         "consolidate",
         "age",
+        "merge",
         "sync",
         "import",
       ])
@@ -281,6 +282,7 @@ server.tool(
     stale_days: z.preprocess(coerceNumber, z.number().optional()).describe("Age active→stale after N days untouched (for age, default 90)"),
     archive_days: z.preprocess(coerceNumber, z.number().optional()).describe("Age stale→archived after N days untouched (for age, default 180)"),
     dry_run: z.preprocess(coerceBoolean, z.boolean().optional()).describe("Preview transitions without applying (for age)"),
+    merged_into: z.string().optional().describe("Winner memory ID that absorbs this entry (for merge)"),
     operation: z.enum(["push", "pull", "export", "rebuild"]).optional().describe("Sync operation (for sync)"),
     file_path: z.string().optional().describe("File path (for import)"),
   },
@@ -376,13 +378,13 @@ server.tool(
         if (groups.length === 0) return text("No consolidation candidates found. Entries are well-separated!");
         const formatted = groups.map((g, gi) => {
           const lines = g.members.map((m, mi) => {
-            const label = mi === 0 ? ">>> KEEP" : "    DEL ";
+            const label = mi === 0 ? ">>> KEEP " : "    MERGE";
             const meta = [m.category, m.project ? `project:${m.project}` : "global", `score:${m.score}`, `uses:${m.use_count}`].join(" | ");
             return `  ${label} [${m.id}] (${meta})\n           ${m.content.slice(0, 120)}`;
           });
           return `Group ${gi + 1} (${g.members.length} entries, avg similarity: ${g.avg_similarity.toFixed(3)}):\n${lines.join("\n")}`;
         });
-        return text(`${groups.length} consolidation groups found:\n\n${formatted.join("\n\n")}\n\nTo merge: update winner with consolidated content, delete the rest.`);
+        return text(`${groups.length} consolidation groups found:\n\n${formatted.join("\n\n")}\n\nTo merge: update the winner with consolidated content, then action:"merge" each loser with merged_into:<winner id> (keeps tombstones — do not delete).`);
       }
 
       case "age": {
@@ -398,6 +400,14 @@ server.tool(
           `${verb}:\n\n→ stale (${r.to_stale.length}):\n${fmt(r.to_stale)}\n\n→ archived (${r.to_archived.length}):\n${fmt(r.to_archived)}` +
             (r.dry_run ? "\n\nRun without dry_run to apply." : "")
         );
+      }
+
+      case "merge": {
+        if (!args.id) return text("Error: id is required for merge (the entry being absorbed)");
+        if (!args.merged_into) return text("Error: merged_into is required for merge (the winning entry)");
+        const result = await mergeMemory(args.id, args.merged_into);
+        if (typeof result === "string") return text(result);
+        return text(`Merged ${result.id} into ${result.merged_into} (tombstone kept; excluded from recall).`);
       }
 
       case "sync": {

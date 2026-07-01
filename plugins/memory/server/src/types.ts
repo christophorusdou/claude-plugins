@@ -17,6 +17,7 @@ export interface Memory {
   valid_until: string | null;
   content_hash: string;
   lifecycle_state: MemoryLifecycleState;
+  merged_into: string | null;
 }
 
 export type MemoryCategory =
@@ -29,8 +30,12 @@ export type MemoryCategory =
 
 export type MemorySource = "manual" | "auto-captured" | "imported";
 
-/** Curator lifecycle: active → stale → archived (reversible; reactivates on use/upvote). */
-export type MemoryLifecycleState = "active" | "stale" | "archived";
+/**
+ * Curator lifecycle: active → stale → archived (reversible; reactivates on use/upvote).
+ * 'merged' is a terminal tombstone: absorbed into another memory (merged_into), excluded
+ * from recall entirely, kept for provenance and sync.
+ */
+export type MemoryLifecycleState = "active" | "stale" | "archived" | "merged";
 
 export interface MemoryEvent {
   id: number;
@@ -47,7 +52,8 @@ export type MemoryEventType =
   | "downvoted"
   | "retrieved"
   | "deleted"
-  | "aged";
+  | "aged"
+  | "merged";
 
 export interface RecallResult {
   memory: Memory;
@@ -110,6 +116,7 @@ export interface MemoryRow {
   valid_until: string | null;
   content_hash: string;
   lifecycle_state: string;
+  merged_into: string | null;
 }
 
 export function rowToMemory(row: MemoryRow): Memory {
