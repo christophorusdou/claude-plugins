@@ -57,7 +57,7 @@ Process all unblogged completed scans: write a digest for each, plus deep-dives 
    Pick the highest-scoring unblogged finding.
    For `all` mode: process all unblogged scans as digests, plus all unblogged findings with score >= 8 as deep-dives.
 
-### Step 2: Fetch full scan data
+### Step 2: Fetch full scan data and auto-skip empty scans
 
 For each scan to process:
 ```bash
@@ -65,6 +65,12 @@ curl -s "http://localhost:8091/api/scans/{scan_id}"
 ```
 
 This returns `{ scan: {..., summary: "..."}, findings: [...] }`.
+
+**Auto-skip:** If the API returns an empty `findings` array despite `finding_count > 0` on the scan (e.g., pre-schema-migration data), automatically add a skip entry to `.radar-published.json` and move to the next scan:
+```json
+"{scan_id}": { "skipped": true, "reason": "no findings returned from API", "published": "YYYY-MM-DD" }
+```
+Report skipped scans to the user but do not stop the workflow.
 
 ### Step 3: Read references
 
