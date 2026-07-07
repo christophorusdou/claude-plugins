@@ -1,5 +1,6 @@
 import { getDb, checkpoint } from "../db.js";
 import { appendJournal } from "../journal.js";
+import { maybeScheduleSync } from "../gitsync.js";
 import { appendLedger } from "./lifecycle.js";
 
 export function deleteMemory(id: string): boolean {
@@ -27,5 +28,6 @@ export function deleteMemory(id: string): boolean {
   tx();
 
   checkpoint();
+  maybeScheduleSync();
   return true;
 }

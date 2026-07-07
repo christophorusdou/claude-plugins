@@ -1,13 +1,16 @@
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, rmdirSync, writeFileSync, statSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { getDataDir } from "./db.js";
 import { writeSnapshot, importFromJsonl, SNAPSHOT_FILE } from "./journal.js";
 const LOCK_DIR = ".sync-lock";
 const PUSH_STAMP = ".last-push";
+const SYNC_STAMP = ".last-sync-attempt";
 const STATUS_FILE = "sync-status.json";
-const PUSH_DEBOUNCE_MS = 60 * 60 * 1000;
 const LOCK_STALE_MS = 5 * 60 * 1000;
+/** Minutes between write-triggered background syncs (0 = every write; for tests) */
+const DEFAULT_SYNC_INTERVAL_MIN = 15;
 /** All git invocations go through execFile (no shell — paths/args are never interpolated). */
 function git(dataDir, args) {
     return execFileSync("git", args, { cwd: dataDir, encoding: "utf-8" });
@@ -72,6 +75,49 @@ function detachedPush(dataDir, statusPath) {
         stdio: "ignore",
     }).unref();
 }
+/** Commits not yet on the upstream branch (no upstream → treat as ahead). */
+function aheadCount(dataDir) {
+    try {
+        const n = parseInt(git(dataDir, ["rev-list", "--count", "@{u}..HEAD"]).trim(), 10);
+        return Number.isFinite(n) ? n : 1;
+    }
+    catch {
+        return 1;
+    }
+}
+/**
+ * Write-triggered sync scheduler: every mutation calls this; at most once per
+ * MEMORY_SYNC_INTERVAL_MIN (default 15) it spawns a detached `cli.js sync` so
+ * commits/pushes happen DURING long sessions, not only at SessionEnd — and a
+ * crashed session's writes ship at the next session start, which also calls
+ * this. Never blocks or fails the calling tool.
+ */
+export function maybeScheduleSync() {
+    try {
+        const dataDir = getDataDir();
+        const intervalMin = Number(process.env.MEMORY_SYNC_INTERVAL_MIN ?? DEFAULT_SYNC_INTERVAL_MIN);
+        const stamp = join(dataDir, SYNC_STAMP);
+        let last = 0;
+        try {
+            last = statSync(stamp).mtimeMs;
+        }
+        catch {
+            /* never synced */
+        }
+        if (Date.now() - last < intervalMin * 60_000)
+            return;
+        writeFileSync(stamp, new Date().toISOString() + "\n");
+        const cliPath = fileURLToPath(new URL("./cli.js", import.meta.url));
+        spawn(process.execPath, [cliPath, "sync"], {
+            detached: true,
+            stdio: "ignore",
+            env: { ...process.env },
+        }).unref();
+    }
+    catch {
+        /* best-effort */
+    }
+}
 export function readSyncStatus() {
     try {
         return JSON.parse(readFileSync(join(getDataDir(), STATUS_FILE), "utf-8"));
@@ -81,7 +127,8 @@ export function readSyncStatus() {
     }
 }
 /**
- * SessionEnd auto-sync: snapshot → commit when dirty → debounced detached push.
+ * Auto-sync (SessionEnd hook + write-triggered scheduler): snapshot → commit
+ * when dirty → detached push whenever local commits aren't on the remote yet.
  */
 export function autoSync() {
     const dataDir = getDataDir();
@@ -95,22 +142,14 @@ export function autoSync() {
         if (dirty) {
             git(dataDir, ["commit", "--quiet", "-m", `memory sync: ${count} entries`]);
         }
-        const stampPath = join(dataDir, PUSH_STAMP);
-        let lastPush = 0;
-        try {
-            lastPush = statSync(stampPath).mtimeMs;
-        }
-        catch {
-            /* never pushed */
-        }
-        if (Date.now() - lastPush > PUSH_DEBOUNCE_MS) {
-            writeFileSync(stampPath, new Date().toISOString() + "\n");
+        if (aheadCount(dataDir) > 0) {
+            writeFileSync(join(dataDir, PUSH_STAMP), new Date().toISOString() + "\n");
             detachedPush(dataDir, join(dataDir, STATUS_FILE));
             return dirty
                 ? `committed ${count} entries; push running in background`
-                : "clean; background push refresh started";
+                : "pushing earlier unpushed commits in background";
         }
-        return dirty ? `committed ${count} entries (push debounced)` : "clean (nothing to sync)";
+        return "clean (nothing to sync)";
     }
     finally {
         releaseLock(dataDir);

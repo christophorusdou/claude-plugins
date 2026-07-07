@@ -43,7 +43,7 @@ const RECALL_TRUNCATE_CHARS = 600;
 
 const server = new McpServer({
   name: "memory",
-  version: "2.0.1",
+  version: "2.0.2",
 });
 
 // --- memory_store ---

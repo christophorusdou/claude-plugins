@@ -20,7 +20,7 @@ Data stored in `~/.claude-memory/` (override with `MEMORY_DATA_DIR` for testing)
 - `journal.jsonl` — append-only mutation log, one JSON line per store/update/delete/vote/merge/age, written synchronously after each committed transaction. Human-readable recovery source if the DB is ever lost.
 - `memories.jsonl` — full snapshot, regenerated at each maintenance pass.
 - `backups/` — pre-migration VACUUM snapshots and archived v1 artifacts.
-- Git repo (remote: forgejo `chris/claude-memory`): `journal.jsonl` + `memories.jsonl` + `curation-log.jsonl` are auto-committed at session end and pushed in a detached background process (debounced to 1/hour). A failed push is surfaced at the next SessionStart.
+- Git repo (remote: forgejo `chris/claude-memory`): `journal.jsonl` + `memories.jsonl` + `curation-log.jsonl` are auto-committed and pushed by a detached background sync. Sync triggers: **every write** (debounced to once per 15 min — tune with `MEMORY_SYNC_INTERVAL_MIN`), **session start** (catches a crashed session's unpushed writes), and **session end**. A push fires whenever local commits aren't on the remote; a failed push is surfaced at the next SessionStart. Manual: `memory_manage action:"sync"` or `node server/dist/cli.js sync`.
 
 ## Hooks
 
@@ -28,7 +28,7 @@ Data stored in `~/.claude-memory/` (override with `MEMORY_DATA_DIR` for testing)
 |------|--------------|
 | SessionStart | Injects top-5 project + top-3 global memories (active only, ranked by the same module recall uses, ~2,000-char budget, `injected` events logged). Also surfaces failed background pushes and a consolidation nudge when curation is overdue AND near-duplicate groups actually exist. |
 | Stop | On substantive sessions (≥5 tool uses, once per session), prompts Claude to capture non-obvious learnings via the `capture-learnings` skill (absorbed from the retired session-learnings plugin). |
-| SessionEnd | `cli.js maintain`: WAL truncate → cadence-gated lifecycle aging (every ~7 days) → snapshot → git commit → debounced detached push. |
+| SessionEnd | `cli.js maintain`: WAL truncate → cadence-gated lifecycle aging (every ~7 days) → snapshot → git commit → detached push. |
 
 ## Tools (3)
 

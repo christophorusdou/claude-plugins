@@ -7,7 +7,7 @@ import { detectProject } from "./detect.js";
 import { selectForInjection } from "./rank.js";
 import { renderSafe } from "./threat.js";
 import { ensureJournalBootstrap, journalLineCount } from "./journal.js";
-import { autoSync, readSyncStatus } from "./gitsync.js";
+import { autoSync, readSyncStatus, maybeScheduleSync } from "./gitsync.js";
 import { ageMemories } from "./tools/lifecycle.js";
 import { findConsolidationGroups } from "./similarity.js";
 import { recall } from "./retrieval.js";
@@ -111,6 +111,10 @@ function cmdSessionStart(): void {
   }
 
   emitSessionStart(parts.join("\n\n"));
+
+  // Catch-up: if a previous session crashed with unpushed writes (SessionEnd
+  // never fired), this schedules a background sync now.
+  maybeScheduleSync();
 }
 
 function cmdMaintain(): void {
@@ -184,12 +188,16 @@ try {
     case "maintain":
       cmdMaintain();
       break;
+    case "sync":
+      // Target of the write-triggered scheduler (runs detached); also handy manually.
+      console.log(autoSync());
+      break;
     case "verify":
       cmdVerify();
       break;
     default:
-      console.error("usage: cli.js <session-start|maintain|verify>");
-      process.exit(command ? 1 : 1);
+      console.error("usage: cli.js <session-start|maintain|sync|verify>");
+      process.exit(1);
   }
 } catch (err) {
   // Hook paths must not block the session on an internal failure.

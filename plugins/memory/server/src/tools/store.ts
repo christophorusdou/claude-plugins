@@ -5,6 +5,7 @@ import { findNearDuplicates } from "../similarity.js";
 import { getDetectedProject } from "../detect.js";
 import { scanThreat } from "../threat.js";
 import { appendJournal } from "../journal.js";
+import { maybeScheduleSync } from "../gitsync.js";
 import type { Memory, MemoryCategory, MemorySource, StoreResult } from "../types.js";
 
 const CATEGORY_KEYWORDS: Record<MemoryCategory, string[]> = {
@@ -164,6 +165,7 @@ export function storeMemory(opts: StoreOptions): StoreResult {
 
   appendJournal("create", { memory });
   checkpoint();
+  maybeScheduleSync();
 
   return { id, status: "created", project };
 }

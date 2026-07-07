@@ -19,7 +19,7 @@
     {
       "name": "memory",
       "description": "Cross-project knowledge archive — SQLite+FTS5 store with session capture, lifecycle curation, journaled durability, and auto git sync",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "author": {
         "name": "Chris"
       },

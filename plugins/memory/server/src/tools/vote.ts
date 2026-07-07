@@ -1,5 +1,6 @@
 import { getDb, checkpoint } from "../db.js";
 import { appendJournal } from "../journal.js";
+import { maybeScheduleSync } from "../gitsync.js";
 import type { Memory, MemoryLifecycleState, MemoryRow } from "../types.js";
 import { rowToMemory } from "../types.js";
 
@@ -65,6 +66,7 @@ function vote(id: string, direction: "up" | "down", detail?: string): VoteResult
     detail: detail ?? null,
   });
   checkpoint();
+  maybeScheduleSync();
 
   const updated = db
     .prepare("SELECT * FROM memories WHERE id = ?")

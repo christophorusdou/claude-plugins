@@ -5,6 +5,7 @@ import { findNearDuplicates } from "../similarity.js";
 import { getDetectedProject } from "../detect.js";
 import { scanThreat } from "../threat.js";
 import { appendJournal } from "../journal.js";
+import { maybeScheduleSync } from "../gitsync.js";
 const CATEGORY_KEYWORDS = {
     pattern: ["pattern", "convention", "always", "standard", "approach", "architecture"],
     gotcha: ["gotcha", "watch out", "careful", "trap", "pitfall", "caveat", "workaround", "bug"],
@@ -105,6 +106,7 @@ export function storeMemory(opts) {
     tx();
     appendJournal("create", { memory });
     checkpoint();
+    maybeScheduleSync();
     return { id, status: "created", project };
 }
 //# sourceMappingURL=store.js.map

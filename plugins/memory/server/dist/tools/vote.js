@@ -1,5 +1,6 @@
 import { getDb, checkpoint } from "../db.js";
 import { appendJournal } from "../journal.js";
+import { maybeScheduleSync } from "../gitsync.js";
 import { rowToMemory } from "../types.js";
 /**
  * v2 downvote semantics: score/confidence drop as before, and sustained
@@ -48,6 +49,7 @@ function vote(id, direction, detail) {
         detail: detail ?? null,
     });
     checkpoint();
+    maybeScheduleSync();
     const updated = db
         .prepare("SELECT * FROM memories WHERE id = ?")
         .get(id);

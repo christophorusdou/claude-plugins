@@ -2,6 +2,7 @@ import { appendFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { getDb, getDataDir, checkpoint } from "../db.js";
 import { appendJournal } from "../journal.js";
+import { maybeScheduleSync } from "../gitsync.js";
 /**
  * Deterministic, reversible lifecycle aging — the curator's automatic pass.
  *
@@ -114,6 +115,7 @@ export function mergeMemory(id, mergedInto) {
     appendLedger({ action: "merge", id, merged_into: mergedInto });
     appendJournal("merge", { id, merged_into: mergedInto });
     checkpoint();
+    maybeScheduleSync();
     return { id, merged_into: mergedInto };
 }
 /**

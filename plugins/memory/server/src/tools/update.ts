@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { getDb, checkpoint } from "../db.js";
 import { appendJournal } from "../journal.js";
+import { maybeScheduleSync } from "../gitsync.js";
 import type { Memory, MemoryCategory, MemoryRow } from "../types.js";
 import { rowToMemory } from "../types.js";
 
@@ -77,6 +78,7 @@ export function updateMemory(opts: UpdateOptions): Memory | null {
 
   appendJournal("update", { id: opts.id, fields: opts });
   checkpoint();
+  maybeScheduleSync();
 
   const updatedRow = db
     .prepare("SELECT * FROM memories WHERE id = ?")
