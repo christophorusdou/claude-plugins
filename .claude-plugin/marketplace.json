@@ -18,8 +18,8 @@
     },
     {
       "name": "memory",
-      "description": "Centralized cross-project memory system with semantic search, voting, and git sync",
-      "version": "1.0.0",
+      "description": "Cross-project knowledge archive — SQLite+FTS5 store with session capture, lifecycle curation, journaled durability, and auto git sync",
+      "version": "2.0.0",
       "author": {
         "name": "Chris"
       },
@@ -49,7 +49,7 @@
     {
       "name": "career-evolution",
       "description": "Periodic career research, trend tracking, and strategic decision support for software engineers navigating the AI era",
-      "version": "1.2.0",
+      "version": "1.1.2",
       "author": {
         "name": "Chris"
       },
@@ -59,7 +59,7 @@
     {
       "name": "ai-efficiency-advisor",
       "description": "AI tool efficiency coaching — usage analysis, feature discovery, project portfolio health, improvement tracking",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": {
         "name": "Chris"
       },
@@ -77,17 +77,9 @@
       "category": "development"
     },
     {
-      "name": "session-learnings",
-      "description": "Automatically captures non-obvious learnings at the end of substantive sessions",
-      "version": "1.1.0",
-      "author": { "name": "Chris" },
-      "source": "./plugins/session-learnings",
-      "category": "knowledge"
-    },
-    {
       "name": "blog-publisher",
       "description": "Write and publish blog posts to blog.cdrift.com from any repo — guides through writing, frontmatter, build verification, and deployment",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "author": {
         "name": "Chris"
       },

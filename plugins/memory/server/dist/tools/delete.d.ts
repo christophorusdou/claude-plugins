@@ -1,2 +1,2 @@
-export declare function deleteMemory(id: string): Promise<boolean>;
+export declare function deleteMemory(id: string): boolean;
 //# sourceMappingURL=delete.d.ts.map

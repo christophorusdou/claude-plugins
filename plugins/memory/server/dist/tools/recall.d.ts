@@ -6,6 +6,6 @@ interface RecallOptions {
     limit?: number;
     min_score?: number;
 }
-export declare function recallMemories(opts: RecallOptions): Promise<RecallResult[]>;
+export declare function recallMemories(opts: RecallOptions): RecallResult[];
 export {};
 //# sourceMappingURL=recall.d.ts.map

@@ -4,22 +4,22 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { storeMemory } from "./tools/store.js";
 import { recallMemories } from "./tools/recall.js";
+import { getMemory } from "./tools/get.js";
 import { listMemories } from "./tools/list.js";
 import { updateMemory } from "./tools/update.js";
 import { deleteMemory } from "./tools/delete.js";
 import { upvoteMemory, downvoteMemory } from "./tools/vote.js";
 import { getStats } from "./tools/stats.js";
-import { getCleanupCandidates } from "./tools/cleanup.js";
 import { auditMemories } from "./tools/audit.js";
 import { syncMemories } from "./tools/sync.js";
 import { importMemoryMd } from "./tools/import.js";
-import { findConsolidationGroups } from "./tools/consolidate.js";
 import { ageMemories, mergeMemory } from "./tools/lifecycle.js";
+import { findConsolidationGroups } from "./similarity.js";
 import { validateTriggers } from "./retrieval.js";
-import { closeDb } from "./db.js";
-import { getDetectedProject } from "./project-detect.js";
-import { saveSearchIndex } from "./search-index.js";
-import { preloadModel } from "./embeddings.js";
+import { getDb, closeDb } from "./db.js";
+import { getDetectedProject } from "./detect.js";
+import { renderSafe } from "./threat.js";
+import { ensureJournalBootstrap } from "./journal.js";
 
 // Coercion helpers for deferred-tool resilience: when MCP tool schemas are
 // evicted from the model's context, all params arrive as strings. These
@@ -39,15 +39,17 @@ const coerceBoolean = (v: unknown) => {
   return v;
 };
 
+const RECALL_TRUNCATE_CHARS = 600;
+
 const server = new McpServer({
   name: "memory",
-  version: "1.3.0",
+  version: "2.0.0",
 });
 
 // --- memory_store ---
 server.tool(
   "memory_store",
-  "Store a knowledge entry in the cross-project archive. For patterns, gotchas, debug insights, decisions, or facts that benefit from semantic search. NOT for user preferences or session feedback (use built-in memory for those). Auto-detects project scope. Deduplicates within same scope.",
+  "Store a knowledge entry in the cross-project archive. For patterns, gotchas, debug insights, decisions, or facts. Write declarative facts about how the world behaves, not imperatives to yourself. NOT for user preferences or session feedback (use built-in memory for those). Auto-detects project scope. Deduplicates within same scope.",
   {
     content: z.string().describe("The memory text to store"),
     category: z
@@ -94,72 +96,62 @@ server.tool(
       .nullable()
       .optional()
       .describe("ISO date when this memory expires (e.g. '2026-06-01'). Expired memories rank lower."),
+    allow_similar: z.preprocess(coerceBoolean, z.boolean().optional()).describe(
+      "Set true to store despite a near-duplicate warning (when the new entry is genuinely distinct)"
+    ),
   },
   async (args) => {
-    // Validate triggers before storing
+    const text = (s: string) => ({ content: [{ type: "text" as const, text: s }] });
+
     if (args.triggers && args.triggers.length > 0) {
       const triggerErrors = validateTriggers(args.triggers);
       if (triggerErrors.length > 0) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Invalid triggers:\n${triggerErrors.join("\n")}\n\nFix the patterns and retry.`,
-            },
-          ],
-        };
+        return text(`Invalid triggers:\n${triggerErrors.join("\n")}\n\nFix the patterns and retry.`);
       }
     }
 
-    const result = await storeMemory({
-      content: args.content,
-      category: args.category,
-      project: args.project,
-      tags: args.tags,
-      triggers: args.triggers,
-      source: args.source,
-      confidence: args.confidence,
-      version_context: args.version_context,
-      valid_until: args.valid_until,
-    });
+    let result;
+    try {
+      result = storeMemory({
+        content: args.content,
+        category: args.category,
+        project: args.project,
+        tags: args.tags,
+        triggers: args.triggers,
+        source: args.source,
+        confidence: args.confidence,
+        version_context: args.version_context,
+        valid_until: args.valid_until,
+        allow_similar: args.allow_similar,
+      });
+    } catch (err) {
+      return text(err instanceof Error ? err.message : String(err));
+    }
 
     if (result.status === "duplicate") {
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Exact duplicate found. Existing memory ID: ${result.existing_id}`,
-          },
-        ],
-      };
+      return text(`Exact duplicate found. Existing memory ID: ${result.existing_id}`);
     }
 
     if (result.status === "near-duplicate") {
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Near-duplicate found (similarity: ${result.similarity?.toFixed(3)}). Existing memory ID: ${result.existing_id}. Use memory_manage with action: "update" to modify the existing entry if needed.`,
-          },
-        ],
-      };
+      const candidates = (result.near_duplicates ?? [])
+        .map((d) => `  [${d.id}] (similarity ${d.similarity.toFixed(2)}) ${d.content}`)
+        .join("\n");
+      return text(
+        `Near-duplicate(s) found:\n${candidates}\n\nPrefer memory_manage action:"update" or "upvote" on the existing entry. If this is genuinely distinct, retry with allow_similar: true.`
+      );
     }
 
     const scope = result.project ? `project: ${result.project}` : "global";
-    return {
-      content: [
-        { type: "text" as const, text: `Memory stored (${scope}). ID: ${result.id}` },
-      ],
-    };
+    return text(`Memory stored (${scope}). ID: ${result.id}`);
   }
 );
 
 // --- memory_recall ---
 server.tool(
   "memory_recall",
-  "Search the knowledge archive using semantic + keyword hybrid search. Use as a fallback when built-in memory doesn't have relevant context, or for cross-project search. If results contradict built-in MEMORY.md, built-in is authoritative. Auto-detects project from cwd for two-pass search (project + global).",
+  "Search the knowledge archive (FTS5/BM25 keyword search). Use as a fallback when built-in memory doesn't have relevant context, or for cross-project search. If results contradict built-in MEMORY.md, built-in is authoritative. Auto-detects project from cwd for two-pass search (project + global). Long entries are truncated — use memory_manage action:\"get\" for full text.",
   {
-    query: z.string().describe("Search query (natural language)"),
+    query: z.string().describe("Search query (keywords work best)"),
     project: z
       .string()
       .nullable()
@@ -176,14 +168,17 @@ server.tool(
       ])
       .optional()
       .describe("Filter by category"),
-    limit: z.preprocess(coerceNumber, z.number().optional()).describe("Max results (default 10)"),
+    limit: z.preprocess(coerceNumber, z.number().optional()).describe("Max results (default 5)"),
     min_score: z.preprocess(coerceNumber,
       z.number()
       .optional()
     ).describe("Minimum memory score to include"),
+    full: z.preprocess(coerceBoolean, z.boolean().optional()).describe(
+      "Return full untruncated content (default false — entries truncate at 600 chars)"
+    ),
   },
   async (args) => {
-    const results = await recallMemories({
+    const results = recallMemories({
       query: args.query,
       project: args.project,
       category: args.category,
@@ -206,12 +201,20 @@ server.tool(
         m.category,
         m.project ? `project:${m.project}` : "global",
         `score:${m.score}`,
-        `sim:${r.vector_similarity.toFixed(3)}`,
+        `rel:${r.relevance.toFixed(3)}`,
         r.trigger_matched ? "TRIGGER" : null,
         expired ? "EXPIRED" : null,
+        m.lifecycle_state !== "active" ? m.lifecycle_state : null,
         m.version_context ? `ctx:${m.version_context}` : null,
       ].filter(Boolean).join(" | ");
-      return `${i + 1}. [${m.id}] (${meta})\n   ${m.content}`;
+
+      let body = renderSafe(m.id, m.content);
+      if (!args.full && body.length > RECALL_TRUNCATE_CHARS) {
+        body =
+          body.slice(0, RECALL_TRUNCATE_CHARS) +
+          `…[truncated — memory_manage action:"get" id:"${m.id}" for full text]`;
+      }
+      return `${i + 1}. [${m.id}] (${meta})\n   ${body}`;
     });
 
     const detected = getDetectedProject();
@@ -233,17 +236,17 @@ server.tool(
 // --- memory_manage ---
 server.tool(
   "memory_manage",
-  "Manage the knowledge archive. Actions: update, delete, upvote, downvote, list, stats, cleanup, audit, consolidate, age, merge, sync, import.",
+  "Manage the knowledge archive. Actions: get, update, delete, upvote, downvote, list, stats, audit, consolidate, age, merge, sync, import.",
   {
     action: z
       .enum([
+        "get",
         "update",
         "delete",
         "upvote",
         "downvote",
         "list",
         "stats",
-        "cleanup",
         "audit",
         "consolidate",
         "age",
@@ -252,7 +255,7 @@ server.tool(
         "import",
       ])
       .describe("Operation to perform"),
-    id: z.string().optional().describe("Entry ID (for update/delete/upvote/downvote)"),
+    id: z.string().optional().describe("Entry ID (for get/update/delete/upvote/downvote/merge)"),
     content: z.string().optional().describe("New content (for update)"),
     category: z
       .enum(["pattern", "gotcha", "preference", "decision", "fact", "debug-insight"])
@@ -273,26 +276,55 @@ server.tool(
       .optional()
       .describe("Expiry date (for update)"),
     detail: z.string().optional().describe("Context for vote (upvote/downvote)"),
-    min_score: z.preprocess(coerceNumber, z.number().optional()).describe("Minimum score (for list/cleanup)"),
+    min_score: z.preprocess(coerceNumber, z.number().optional()).describe("Minimum score (for list)"),
     limit: z.preprocess(coerceNumber, z.number().optional()).describe("Max results"),
     offset: z.preprocess(coerceNumber, z.number().optional()).describe("Pagination offset (for list)"),
     include_expired: z.preprocess(coerceBoolean, z.boolean().optional()).describe("Include expired (for audit, default true)"),
     days_warning: z.preprocess(coerceNumber, z.number().optional()).describe("Days ahead to warn (for audit, default 30)"),
-    threshold: z.preprocess(coerceNumber, z.number().min(0.5).max(0.84).optional()).describe("Similarity threshold (for consolidate, default 0.70)"),
+    threshold: z.preprocess(coerceNumber, z.number().min(0.3).max(0.9).optional()).describe("Jaccard similarity threshold (for consolidate, default 0.5)"),
     stale_days: z.preprocess(coerceNumber, z.number().optional()).describe("Age active→stale after N days untouched (for age, default 90)"),
     archive_days: z.preprocess(coerceNumber, z.number().optional()).describe("Age stale→archived after N days untouched (for age, default 180)"),
     dry_run: z.preprocess(coerceBoolean, z.boolean().optional()).describe("Preview transitions without applying (for age)"),
     merged_into: z.string().optional().describe("Winner memory ID that absorbs this entry (for merge)"),
-    operation: z.enum(["push", "pull", "export", "rebuild"]).optional().describe("Sync operation (for sync)"),
+    operation: z.enum(["push", "pull", "status", "reindex"]).optional().describe("Sync operation (for sync)"),
     file_path: z.string().optional().describe("File path (for import)"),
   },
   async (args) => {
     const text = (s: string) => ({ content: [{ type: "text" as const, text: s }] });
 
     switch (args.action) {
+      case "get": {
+        if (!args.id) return text("Error: id is required for get");
+        const result = getMemory(args.id);
+        if (!result) return text(`Entry ${args.id} not found.`);
+        const m = result.memory;
+        const meta = [
+          `category: ${m.category}`,
+          `project: ${m.project ?? "(global)"}`,
+          `score: ${m.score}`,
+          `confidence: ${m.confidence.toFixed(2)}`,
+          `use_count: ${m.use_count}`,
+          `lifecycle: ${m.lifecycle_state}`,
+          `source: ${m.source}${m.source_detail ? ` (${m.source_detail})` : ""}`,
+          `created: ${m.created_at}`,
+          `last_used: ${m.last_used_at ?? "never"}`,
+          m.version_context ? `version_context: ${m.version_context}` : null,
+          m.valid_until ? `valid_until: ${m.valid_until}` : null,
+          m.merged_into ? `merged_into: ${m.merged_into}` : null,
+          m.tags.length ? `tags: ${m.tags.join(", ")}` : null,
+          m.triggers.length ? `triggers: ${m.triggers.join(", ")}` : null,
+        ].filter(Boolean).join("\n  ");
+        const history = result.events
+          .map((e) => `  ${e.created_at} ${e.event_type}${e.detail ? ` — ${e.detail}` : ""}`)
+          .join("\n");
+        return text(
+          `[${m.id}]\n  ${meta}\n\nContent:\n${renderSafe(m.id, m.content)}\n\nRecent events:\n${history || "  (none)"}`
+        );
+      }
+
       case "update": {
         if (!args.id) return text("Error: id is required for update");
-        const result = await updateMemory({
+        const result = updateMemory({
           id: args.id,
           content: args.content,
           category: args.category,
@@ -308,7 +340,7 @@ server.tool(
 
       case "delete": {
         if (!args.id) return text("Error: id is required for delete");
-        const deleted = await deleteMemory(args.id);
+        const deleted = deleteMemory(args.id);
         return text(deleted ? `Deleted ${args.id}` : `Entry ${args.id} not found`);
       }
 
@@ -316,14 +348,14 @@ server.tool(
         if (!args.id) return text("Error: id is required for upvote");
         const result = upvoteMemory(args.id, args.detail);
         if (!result) return text(`Entry ${args.id} not found.`);
-        return text(`Upvoted. Score: ${result.new_score}, Confidence: ${result.new_confidence.toFixed(2)}`);
+        return text(`Upvoted. Score: ${result.new_score}, Confidence: ${result.new_confidence.toFixed(2)}${result.lifecycle_changed ? `, lifecycle: ${result.lifecycle_changed}` : ""}`);
       }
 
       case "downvote": {
         if (!args.id) return text("Error: id is required for downvote");
         const result = downvoteMemory(args.id, args.detail);
         if (!result) return text(`Entry ${args.id} not found.`);
-        return text(`Downvoted. Score: ${result.new_score}, Confidence: ${result.new_confidence.toFixed(2)}`);
+        return text(`Downvoted. Score: ${result.new_score}, Confidence: ${result.new_confidence.toFixed(2)}${result.lifecycle_changed ? `, lifecycle: ${result.lifecycle_changed}` : ""}`);
       }
 
       case "list": {
@@ -347,13 +379,6 @@ server.tool(
         return text(JSON.stringify(stats, null, 2));
       }
 
-      case "cleanup": {
-        const candidates = getCleanupCandidates();
-        if (candidates.length === 0) return text("No cleanup candidates found. All entries are healthy!");
-        const formatted = candidates.map((c) => `[${c.memory.id}] ${c.reason}\n  ${c.memory.content.slice(0, 100)}`);
-        return text(`${candidates.length} cleanup candidates:\n\n${formatted.join("\n\n")}\n\nUse memory_manage action:delete to remove unwanted entries.`);
-      }
-
       case "audit": {
         const candidates = auditMemories({
           include_expired: args.include_expired,
@@ -370,7 +395,7 @@ server.tool(
       }
 
       case "consolidate": {
-        const groups = await findConsolidationGroups({
+        const groups = findConsolidationGroups(getDb(), {
           project: args.project,
           threshold: args.threshold,
           limit: args.limit,
@@ -405,14 +430,14 @@ server.tool(
       case "merge": {
         if (!args.id) return text("Error: id is required for merge (the entry being absorbed)");
         if (!args.merged_into) return text("Error: merged_into is required for merge (the winning entry)");
-        const result = await mergeMemory(args.id, args.merged_into);
+        const result = mergeMemory(args.id, args.merged_into);
         if (typeof result === "string") return text(result);
         return text(`Merged ${result.id} into ${result.merged_into} (tombstone kept; excluded from recall).`);
       }
 
       case "sync": {
-        if (!args.operation) return text("Error: operation is required for sync (push/pull/export/rebuild)");
-        const result = await syncMemories(args.operation);
+        if (!args.operation) return text("Error: operation is required for sync (push/pull/status/reindex)");
+        const result = syncMemories(args.operation);
         return text(`[${result.operation}] ${result.message}`);
       }
 
@@ -432,8 +457,13 @@ server.tool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  // Preload embedding model in background to avoid cold-start latency
-  preloadModel();
+  // First-run bookkeeping after connect so it never delays the handshake
+  try {
+    getDb();
+    ensureJournalBootstrap();
+  } catch (err) {
+    console.error("[memory] startup bookkeeping failed:", err);
+  }
 }
 
 main().catch((err) => {
@@ -442,11 +472,11 @@ main().catch((err) => {
   process.exit(1);
 });
 
-// Cleanup on exit: save search index before closing DB
-async function shutdown() {
-  await saveSearchIndex().catch(() => {});
+// Graceful-exit path (rare — the server is usually SIGKILLed; durability comes
+// from per-write passive checkpoints, not from these handlers).
+function shutdown() {
   closeDb();
   process.exit(0);
 }
-process.on("SIGINT", () => void shutdown());
-process.on("SIGTERM", () => void shutdown());
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);

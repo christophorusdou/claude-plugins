@@ -1,7 +1,7 @@
-import { getDb } from "../db.js";
-import { removeFromIndex, saveSearchIndex } from "../search-index.js";
+import { getDb, checkpoint } from "../db.js";
+import { appendJournal } from "../journal.js";
 import { appendLedger } from "./lifecycle.js";
-export async function deleteMemory(id) {
+export function deleteMemory(id) {
     const db = getDb();
     const now = new Date().toISOString();
     const existing = db
@@ -10,15 +10,17 @@ export async function deleteMemory(id) {
     if (!existing)
         return false;
     // The 'deleted' event below is cascade-erased with the row (v4 FK ON DELETE CASCADE),
-    // so the ledger file is the durable record of what was deleted and when.
+    // so the ledger + journal are the durable record of what was deleted and when.
     // Prefer action:"merge" for consolidation — delete is for genuinely unwanted content.
     appendLedger({ action: "delete", id, content: existing.content.slice(0, 120) });
-    db.prepare("INSERT INTO memory_events(memory_id, event_type, created_at) VALUES (?, 'deleted', ?)").run(id, now);
-    // Remove from Orama index
-    await removeFromIndex(id);
-    await saveSearchIndex();
-    // Delete memory from SQLite
-    db.prepare("DELETE FROM memories WHERE id = ?").run(id);
+    appendJournal("delete", { id, content: existing.content.slice(0, 120) });
+    const tx = db.transaction(() => {
+        db.prepare("INSERT INTO memory_events(memory_id, event_type, created_at) VALUES (?, 'deleted', ?)").run(id, now);
+        // FTS row is removed by the memories_fts_ad trigger in this same transaction.
+        db.prepare("DELETE FROM memories WHERE id = ?").run(id);
+    });
+    tx();
+    checkpoint();
     return true;
 }
 //# sourceMappingURL=delete.js.map

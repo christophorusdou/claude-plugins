@@ -1,146 +1,97 @@
 import { getDb } from "./db.js";
-import { embed } from "./embeddings.js";
-import { hybridSearch, vectorSearch } from "./search-index.js";
-import { getDetectedProject } from "./project-detect.js";
+import { buildMatch, ftsSearch, likeSearch } from "./search.js";
+import { getDetectedProject } from "./detect.js";
+import { finalScore, MIN_RELEVANCE } from "./rank.js";
 import { rowToMemory } from "./types.js";
 /**
- * 3-stage retrieval pipeline with scope-aware two-pass search:
- * 1. Two-pass Orama hybrid search (project-specific + global)
- * 2. Load full memory records from SQLite
- * 3. Re-rank with effective rank + scope boost, conflict suppression
+ * Retrieval pipeline (v2, FTS5): scope-aware two-pass BM25 search → normalize
+ * relevance across the merged candidate set → rerank via the shared rank.ts
+ * signals → conflict suppression → use accounting.
  *
- * Project resolution:
- *   - undefined → auto-detect project, two-pass search
- *   - string → filter to that project only
+ * Project resolution (unchanged from v1):
+ *   - undefined → auto-detect project, two-pass search (project + global)
+ *   - string → that project only
  *   - null → global only
  */
-export async function recall(opts) {
-    const { query, category, limit = 10, min_score } = opts;
+export function recall(opts) {
+    const { query, category, limit = 5, min_score } = opts;
     const db = getDb();
-    const queryEmbedding = await embed(query);
-    // Resolve project scope
     const explicitProject = opts.project;
     const autoProject = explicitProject === undefined ? getDetectedProject() : null;
     const usesTwoPass = explicitProject === undefined && autoProject !== null;
-    let searchResults;
-    if (usesTwoPass) {
-        // Two-pass: project-specific + global
-        const [projectResults, globalResults] = await Promise.all([
-            hybridSearch(query, queryEmbedding, {
-                project: autoProject,
-                category,
-                limit: 20,
-                similarity: 0.3,
-            }),
-            hybridSearch(query, queryEmbedding, {
-                project: null, // global only
-                category,
-                limit: 15,
-                similarity: 0.3,
-            }),
-        ]);
-        // Merge, dedup by memory_id (project wins)
-        const seen = new Set();
-        searchResults = [];
-        for (const r of projectResults) {
-            seen.add(r.memory_id);
-            searchResults.push({ ...r, isProjectResult: true });
+    let candidates = [];
+    const match = buildMatch(query);
+    if (match) {
+        if (usesTwoPass) {
+            const projectResults = ftsSearch(db, match, { project: autoProject, category, limit: 20 });
+            const globalResults = ftsSearch(db, match, { project: null, category, limit: 15 });
+            const seen = new Set(projectResults.map((c) => c.row.id));
+            candidates = [
+                ...projectResults.map((cand) => ({ cand, isProjectResult: true })),
+                ...globalResults
+                    .filter((c) => !seen.has(c.row.id))
+                    .map((cand) => ({ cand, isProjectResult: false })),
+            ];
         }
-        for (const r of globalResults) {
-            if (!seen.has(r.memory_id)) {
-                searchResults.push({ ...r, isProjectResult: false });
-            }
+        else {
+            const project = explicitProject === undefined ? null : explicitProject;
+            candidates = ftsSearch(db, match, { project, category, limit: 20 }).map((cand) => ({
+                cand,
+                isProjectResult: project !== null,
+            }));
         }
     }
-    else {
-        // Single-pass: explicit project or global-only
-        // No project detected or explicit scope — single-pass search
-        const project = explicitProject === undefined ? null : explicitProject;
-        const results = await hybridSearch(query, queryEmbedding, {
-            project,
-            category,
-            limit: 20,
-            similarity: 0.3,
-        });
-        searchResults = results.map((r) => ({
-            ...r,
-            isProjectResult: project !== null,
-        }));
+    // Substring fallback when tokenization or FTS produced nothing
+    if (candidates.length === 0) {
+        if (usesTwoPass) {
+            const projectResults = likeSearch(db, query, { project: autoProject, category, limit: 10 });
+            const globalResults = likeSearch(db, query, { project: null, category, limit: 10 });
+            const seen = new Set(projectResults.map((c) => c.row.id));
+            candidates = [
+                ...projectResults.map((cand) => ({ cand, isProjectResult: true })),
+                ...globalResults
+                    .filter((c) => !seen.has(c.row.id))
+                    .map((cand) => ({ cand, isProjectResult: false })),
+            ];
+        }
+        else {
+            const project = explicitProject === undefined ? null : explicitProject;
+            candidates = likeSearch(db, query, { project, category, limit: 10 }).map((cand) => ({
+                cand,
+                isProjectResult: project !== null,
+            }));
+        }
     }
-    if (searchResults.length === 0)
+    if (candidates.length === 0)
         return [];
-    // Stage 2: Load full records from SQLite
-    const ids = searchResults.map((r) => r.memory_id);
-    const memoryRows = db
-        .prepare(`SELECT * FROM memories WHERE id IN (${ids.map(() => "?").join(",")})`)
-        .all(...ids);
-    const memoriesById = new Map();
-    for (const row of memoryRows) {
-        memoriesById.set(row.id, rowToMemory(row));
-    }
-    // Stage 3: Re-rank with effective rank + scope boost
+    // Normalize BM25 to 0–1 across the merged candidate set
+    const maxBm25 = Math.max(...candidates.map((c) => c.cand.bm25));
+    const nowMs = Date.now();
     const results = [];
-    const now = Date.now();
-    for (const sr of searchResults) {
-        const memory = memoriesById.get(sr.memory_id);
-        if (!memory)
-            continue;
-        // Merged tombstones are excluded from recall entirely (they're also removed from
-        // the search index at merge time; this is defense in depth for stale indexes).
-        if (memory.lifecycle_state === "merged")
-            continue;
+    for (const { cand, isProjectResult } of candidates) {
+        const memory = rowToMemory(cand.row);
         if (min_score !== undefined && memory.score < min_score)
             continue;
-        // Effective rank: score + ln(use_count + 1) - 0.01 * days_since_last_used
-        const daysSinceUsed = memory.last_used_at
-            ? (now - new Date(memory.last_used_at).getTime()) / 86400000
-            : 30;
-        const effectiveRank = memory.score +
-            Math.log(memory.use_count + 1) -
-            0.01 * daysSinceUsed;
-        // Normalize effective rank to 0-1 range (sigmoid-like)
-        const normalizedRank = 1 / (1 + Math.exp(-effectiveRank / 5));
-        // Scope boost: project-specific memories get +0.15 in two-pass mode
-        const scopeBoost = usesTwoPass && sr.isProjectResult ? 0.15 : 0;
-        // Trigger boost: +0.20 if any trigger pattern matches the query
+        const relevance = maxBm25 > 0 ? cand.bm25 / maxBm25 : 0;
+        if (relevance < MIN_RELEVANCE)
+            continue;
         const triggerMatched = matchTriggers(memory.triggers, query);
-        const triggerBoost = triggerMatched ? 0.20 : 0;
-        // Freshness multiplier based on valid_until expiry
-        let freshnessMultiplier = 1.0;
-        if (memory.valid_until) {
-            const expiryMs = new Date(memory.valid_until).getTime();
-            const daysLeft = (expiryMs - now) / 86400000;
-            if (daysLeft <= 0) {
-                freshnessMultiplier = 0.3; // expired — 70% penalty
-            }
-            else if (daysLeft <= 7) {
-                freshnessMultiplier = 0.5 + 0.5 * (daysLeft / 7); // linear ramp 0.5→1.0
-            }
-        }
-        // Lifecycle multiplier: the curator ages unused/negative memories down.
-        // Defaults to 1.0 (active), so recall is unchanged until aging runs.
-        const stateMultiplier = memory.lifecycle_state === "archived" ? 0.1 : memory.lifecycle_state === "stale" ? 0.4 : 1.0;
-        // Combine: 0.7 * orama + 0.15 * effective_rank + scope + trigger
-        const finalScore = (sr.score * 0.7 + normalizedRank * 0.15 + scopeBoost + triggerBoost) *
-            freshnessMultiplier *
-            stateMultiplier;
         results.push({
             memory,
-            vector_similarity: sr.score,
-            fts_score: 0, // Orama combines these internally
-            final_score: finalScore,
+            relevance,
+            final_score: finalScore(memory, {
+                relevance,
+                scopeBoosted: usesTwoPass && isProjectResult,
+                triggerMatched,
+            }, nowMs),
             trigger_matched: triggerMatched,
         });
     }
-    // Conflict suppression: if a project memory and global memory both scored
-    // highly on the same query (both >0.5 relevance, within 0.2 of each other),
-    // suppress the global one — the project-specific memory is the override.
     if (usesTwoPass) {
         resolveConflicts(results);
     }
-    // Sort by final score descending
     results.sort((a, b) => b.final_score - a.final_score);
-    // Update use_count and last_used_at for returned results
+    // Use accounting for returned results (query-driven retrieval earns use_count)
     const updateStmt = db.prepare(`UPDATE memories SET use_count = use_count + 1, last_used_at = ? WHERE id = ?`);
     const logStmt = db.prepare(`INSERT INTO memory_events(memory_id, event_type, created_at) VALUES (?, 'retrieved', ?)`);
     // Reactivate on use: a recalled 'stale' memory is evidently still useful → back to active.
@@ -183,9 +134,7 @@ export function validateTrigger(trigger) {
     }
     return null;
 }
-/**
- * Validate all triggers, returning errors for any unsafe patterns.
- */
+/** Validate all triggers, returning errors for any unsafe patterns. */
 export function validateTriggers(triggers) {
     const errors = [];
     for (const trigger of triggers) {
@@ -211,7 +160,6 @@ export function matchTriggers(triggers, query) {
             try {
                 const flags = regexMatch[2] || "i";
                 const pattern = regexMatch[1];
-                // Skip patterns flagged as ReDoS-vulnerable
                 if (REDOS_PATTERN.test(pattern))
                     continue;
                 const re = new RegExp(pattern, flags);
@@ -219,7 +167,6 @@ export function matchTriggers(triggers, query) {
                     return true;
             }
             catch {
-                // Invalid regex — fall back to substring
                 if (lowerQuery.includes(trigger.toLowerCase()))
                     return true;
             }
@@ -233,51 +180,31 @@ export function matchTriggers(triggers, query) {
 }
 /**
  * Suppress global memories that conflict with project-specific ones.
- * Conservative: only suppresses when both score very high (>0.7 vector
- * similarity) and are within 0.1 of each other AND share category.
- *
- * Uses vector_similarity (raw Orama score) instead of final_score to avoid
- * the scope boost (+0.15) giving project memories an unfair advantage in
- * the proximity comparison.
+ * Conservative: only when both are highly relevant (>0.7 normalized BM25),
+ * within 0.1 of each other, AND share category — the project-specific memory
+ * is treated as the intentional override.
  */
 function resolveConflicts(results) {
     const projectMemories = results.filter((r) => r.memory.project !== null);
     const globalMemories = results.filter((r) => r.memory.project === null);
     const suppressIds = new Set();
     for (const proj of projectMemories) {
-        if (proj.vector_similarity < 0.7)
+        if (proj.relevance < 0.7)
             continue;
         for (const glob of globalMemories) {
-            if (glob.vector_similarity < 0.7)
+            if (glob.relevance < 0.7)
                 continue;
-            // Must be same category (indicates topic overlap)
             if (proj.memory.category !== glob.memory.category)
                 continue;
-            if (Math.abs(proj.vector_similarity - glob.vector_similarity) < 0.1) {
+            if (Math.abs(proj.relevance - glob.relevance) < 0.1) {
                 suppressIds.add(glob.memory.id);
             }
         }
     }
-    // Remove suppressed globals in-place
     for (let i = results.length - 1; i >= 0; i--) {
         if (suppressIds.has(results[i].memory.id)) {
             results.splice(i, 1);
         }
     }
-}
-/**
- * Find memories similar to a given embedding, for dedup checks.
- * When project is provided, limits vector dedup to same scope.
- */
-export async function findSimilar(embedding, threshold = 0.85, limit = 5, project) {
-    const results = await vectorSearch(embedding, {
-        project,
-        limit,
-        similarity: threshold,
-    });
-    return results.map((r) => ({
-        memory_id: r.memory_id,
-        similarity: r.score,
-    }));
 }
 //# sourceMappingURL=retrieval.js.map

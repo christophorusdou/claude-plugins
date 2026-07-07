@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
-import { getDb } from "../db.js";
-import { embed } from "../embeddings.js";
-import { updateInIndex, saveSearchIndex } from "../search-index.js";
+import { getDb, checkpoint } from "../db.js";
+import { appendJournal } from "../journal.js";
 import type { Memory, MemoryCategory, MemoryRow } from "../types.js";
 import { rowToMemory } from "../types.js";
 
@@ -16,9 +15,7 @@ interface UpdateOptions {
   valid_until?: string | null;
 }
 
-export async function updateMemory(
-  opts: UpdateOptions
-): Promise<Memory | null> {
+export function updateMemory(opts: UpdateOptions): Memory | null {
   const db = getDb();
   const now = new Date().toISOString();
 
@@ -68,31 +65,18 @@ export async function updateMemory(
   }
 
   params.push(opts.id);
-  db.prepare(`UPDATE memories SET ${sets.join(", ")} WHERE id = ?`).run(
-    ...params
-  );
 
-  // Re-index in Orama if content, category, or project changed
-  if (opts.content !== undefined || opts.category !== undefined || opts.project !== undefined) {
-    const updated = db
-      .prepare("SELECT * FROM memories WHERE id = ?")
-      .get(opts.id) as MemoryRow;
-    const content = updated.content;
-    const embedding = await embed(content);
-    await updateInIndex(
-      opts.id,
-      content,
-      embedding,
-      updated.category,
-      updated.project ?? ""
-    );
-    await saveSearchIndex();
-  }
+  const tx = db.transaction(() => {
+    // The FTS index follows automatically via the memories_fts_au trigger.
+    db.prepare(`UPDATE memories SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+    db.prepare(
+      "INSERT INTO memory_events(memory_id, event_type, detail, created_at) VALUES (?, 'updated', ?, ?)"
+    ).run(opts.id, JSON.stringify(opts), now);
+  });
+  tx();
 
-  // Log event
-  db.prepare(
-    "INSERT INTO memory_events(memory_id, event_type, detail, created_at) VALUES (?, 'updated', ?, ?)"
-  ).run(opts.id, JSON.stringify(opts), now);
+  appendJournal("update", { id: opts.id, fields: opts });
+  checkpoint();
 
   const updatedRow = db
     .prepare("SELECT * FROM memories WHERE id = ?")

@@ -8,8 +8,13 @@ description: >-
 
 # Knowledge Archive Maintenance
 
-Run this skill periodically (weekly or when prompted) to keep the knowledge
-archive healthy and aligned with built-in memory.
+Run this skill periodically (or when the SessionStart nudge fires) to keep the
+knowledge archive healthy and aligned with built-in memory.
+
+**What's already automatic (do not redo here):** lifecycle aging, WAL
+checkpointing, journal/snapshot export, and git sync all run in the SessionEnd
+maintenance hook. This skill covers the parts that need LLM judgment:
+contradiction diffing, staleness review, and consolidation.
 
 ## Prerequisites
 
@@ -36,8 +41,8 @@ contradictions.
 2. For each MEMORY.md, read the linked memory files (the `.md` files it
    points to)
 3. For each built-in memory entry, call `memory_recall` with the entry's
-   content as the query
-4. If a high-similarity match exists (similarity > 0.7) with **contradicting
+   key terms as the query (keyword search — pick distinctive nouns)
+4. If a highly relevant match exists (rel > 0.7) with **contradicting
    content** (same topic, different advice):
    - The built-in entry is authoritative
    - Call `memory_manage` with `action: "downvote"` on the plugin entry,
@@ -68,30 +73,18 @@ with the consolidated content, then call `memory_manage` with `action: "merge"`,
 `id: <loser>`, `merged_into: <winner>` — **never delete losers**; the merge action
 keeps a recall-excluded tombstone that preserves provenance.
 
-### Phase 4: Lifecycle Aging
-
-Call `memory_manage` with `action: "age"` and `dry_run: true` to preview deterministic
-active→stale→archived transitions (aging is reversible — recall and upvote reactivate an entry).
-Present the proposed transitions, then apply with `action: "age"` (omit `dry_run`). Archived entries
-are **kept** (recall ranks them far lower), never deleted. Tune with `stale_days` / `archive_days`.
-
-### Phase 5: Summary Report
+### Phase 4: Summary Report
 
 Summarize:
 - Contradictions found and auto-downvoted (Phase 1)
 - Stale/expiring entries needing review (Phase 2)
-- Consolidation groups found (Phase 3)
-- Lifecycle transitions applied (Phase 4)
-- Total archive health via `action: "stats"` (now includes `by_lifecycle`)
+- Consolidation groups found and merges applied (Phase 3)
+- Total archive health via `action: "stats"` (includes `by_lifecycle`)
+- Sync health via `action: "sync", operation: "status"` (last background push result)
 
-### Phase 6: Sync
-
-`memory_manage` with `action: "sync", operation: "push"` — commits `memories.jsonl` to
-`~/.claude-memory/.git` and pushes to the private forgejo remote if configured.
-
-(No manual bookkeeping: the ledger `~/.claude-memory/curation-log.jsonl` and the
-`last-curation` stamp are written **server-side** by the Phase 4 age apply — the nudge
-resets automatically. Deletes and merges also self-record to the ledger.)
+(Lifecycle aging is NOT a phase anymore — it runs automatically at session end
+every ~7 days. Run `action: "age"` manually only to tune `stale_days` /
+`archive_days` or to preview with `dry_run: true`.)
 
 ## Notes
 
@@ -100,5 +93,5 @@ resets automatically. Deletes and merges also self-record to the ledger.)
 - Phase 1 (diff) is the most important — it enforces the "built-in wins"
   authority rule
 - Consolidation suggestions require user approval before merging
-- Run `action: "cleanup"` after maintenance to find any newly-qualifying
-  low-value entries
+- The ledger `~/.claude-memory/curation-log.jsonl` and the `last-curation`
+  stamp are written server-side by age/merge/delete — no manual bookkeeping
