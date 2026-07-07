@@ -96,8 +96,11 @@ Never hardcode secrets. Use macOS Keychain:
 | `forgejo-api` | Forgejo REST API at git.cdrift.com | `security find-generic-password -s forgejo-api -a chris -w` (or shell helper `forgejo-token`) |
 | `cloudflare-api` | Cloudflare REST API (Pages deploys, DNS, account info) | `security find-generic-password -s cloudflare-api -a chris -w` |
 | `tailscale-api` | Tailscale REST API (devices, routes, ACL) — authoritative for route state when CLI shows stale data | `security find-generic-password -s tailscale-api -a chris -w` |
+| `forgejo-registry_token_ci_all` | Forgejo container registry login (`docker login forgejo:3000`) for CI — `package` scope only, NOT usable for Forgejo API calls. Shared across repos as each repo's `REGISTRY_TOKEN` Actions secret (Forgejo has no cross-repo secret inheritance — each repo needs its own copy). | `security find-generic-password -s forgejo-registry_token_ci_all -w` |
 
 Cloudflare API auth pattern: `curl -H "Authorization: Bearer $(security find-generic-password -s cloudflare-api -a chris -w)" https://api.cloudflare.com/client/v4/...`
+
+Forgejo registry vs. API token — see `skills/homelab-infra/references/forgejo-ci.md` § "Registry Token Failures" for the two distinct failure modes and why one token can't substitute for the other.
 
 The same Cloudflare token is also set as the `CLOUDFLARE_API_TOKEN` Forgejo Actions secret on `chris/blog` and `chris/ticket-pointing` for `wrangler deploy` to Cloudflare Pages — when rotating, update keychain AND both Forgejo repo secrets.
 

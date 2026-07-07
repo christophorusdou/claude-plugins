@@ -109,6 +109,27 @@ jobs:
       options: --add-host=forgejo:host-gateway
 ```
 
+### Registry Token Failures: Two Different Symptoms, Two Different Fixes
+
+`REGISTRY_TOKEN` (used by `docker login` in CI, see below) and the
+`forgejo-api` token (used for Forgejo REST API calls) are **different
+credentials with different scopes** — mixing them up produces two distinct,
+confusing failures:
+
+| Symptom in CI logs | Cause | Fix |
+|---|---|---|
+| `Error response from daemon: ... unauthorized: authGroup.Verify` | `REGISTRY_TOKEN` secret exists but the underlying token is expired/revoked, or lacks `package` read/write scope | Generate a new token (user Settings → Applications) with `read:package` + `write:package` scope. Store it in Keychain, then set it as the repo's `REGISTRY_TOKEN` secret. |
+| `Error: Cannot perform an interactive login from a non TTY device` | `REGISTRY_TOKEN` and/or `REGISTRY_USER` secret is **empty/missing** — `docker login` falls back to an interactive prompt when `-u`/password-stdin get nothing | Confirm the repo actually has `REGISTRY_TOKEN`/`REGISTRY_USER` set under **repo-level** Settings → Actions → Secrets (Forgejo does not have GitHub-style org-wide secret inheritance across a user's repos — each repo needs its own copy of shared CI credentials). |
+
+Trying to fix either by reusing the *other* token doesn't work: a
+`write:package`-scoped registry token gets `403: token does not have at
+least one of required scope(s): [write:repository]` if you try to use it to
+call `PUT /repos/{owner}/{repo}/actions/secrets/{name}` (secret management is
+a `repository`-scope operation, unrelated to the `package` scope used for
+registry push/pull). Use `forgejo-api` (see main `CLAUDE.md` Credentials
+section) for the API call, and the dedicated registry token as the *value*
+you're writing into the secret.
+
 ## Container Registry
 
 ### Internal vs External
