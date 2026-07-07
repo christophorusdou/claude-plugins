@@ -11,7 +11,7 @@ cd "$SERVER_DIR"
 needs_install=0
 if [ ! -d "node_modules" ]; then
   needs_install=1
-elif ! node --input-type=module -e 'await import("@modelcontextprotocol/sdk/server/mcp.js"); await import("zod"); await import("@huggingface/transformers"); await import("@orama/orama"); await import("better-sqlite3");' >/dev/null 2>&1; then
+elif ! node --input-type=module -e 'await import("@modelcontextprotocol/sdk/server/mcp.js"); await import("zod"); await import("better-sqlite3");' >/dev/null 2>&1; then
   needs_install=1
 fi
 

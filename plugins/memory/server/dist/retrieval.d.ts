@@ -1,4 +1,4 @@
-import type { RecallResult } from "./types.js";
+import type { MemoryRow, RecallResult } from "./types.js";
 interface RetrievalOptions {
     query: string;
     project?: string | null;
@@ -7,25 +7,22 @@ interface RetrievalOptions {
     min_score?: number;
 }
 /**
- * 3-stage retrieval pipeline with scope-aware two-pass search:
- * 1. Two-pass Orama hybrid search (project-specific + global)
- * 2. Load full memory records from SQLite
- * 3. Re-rank with effective rank + scope boost, conflict suppression
+ * Retrieval pipeline (v2, FTS5): scope-aware two-pass BM25 search → normalize
+ * relevance across the merged candidate set → rerank via the shared rank.ts
+ * signals → conflict suppression → use accounting.
  *
- * Project resolution:
- *   - undefined → auto-detect project, two-pass search
- *   - string → filter to that project only
+ * Project resolution (unchanged from v1):
+ *   - undefined → auto-detect project, two-pass search (project + global)
+ *   - string → that project only
  *   - null → global only
  */
-export declare function recall(opts: RetrievalOptions): Promise<RecallResult[]>;
+export declare function recall(opts: RetrievalOptions): RecallResult[];
 /**
  * Validate a single trigger pattern for safety.
  * Returns null if valid, or an error string if invalid.
  */
 export declare function validateTrigger(trigger: string): string | null;
-/**
- * Validate all triggers, returning errors for any unsafe patterns.
- */
+/** Validate all triggers, returning errors for any unsafe patterns. */
 export declare function validateTriggers(triggers: string[]): string[];
 /**
  * Check if any trigger pattern matches the query string.
@@ -34,13 +31,5 @@ export declare function validateTriggers(triggers: string[]): string[];
  * Invalid regex falls back to substring match.
  */
 export declare function matchTriggers(triggers: string[], query: string): boolean;
-/**
- * Find memories similar to a given embedding, for dedup checks.
- * When project is provided, limits vector dedup to same scope.
- */
-export declare function findSimilar(embedding: Float32Array, threshold?: number, limit?: number, project?: string | null): Promise<Array<{
-    memory_id: string;
-    similarity: number;
-}>>;
-export {};
+export type { MemoryRow };
 //# sourceMappingURL=retrieval.d.ts.map

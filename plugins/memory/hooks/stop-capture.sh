@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Session Learnings Stop Hook
+# Memory capture Stop hook (absorbed from the session-learnings plugin).
 # Blocks stopping on substantive sessions to prompt Claude to capture learnings.
 # Trivial sessions (< 5 tool uses) pass through immediately.
 # Uses a marker file to ensure we only prompt once per session.
@@ -22,7 +22,7 @@ if [[ -z "$TRANSCRIPT_PATH" ]] || [[ ! -f "$TRANSCRIPT_PATH" ]] || [[ -z "$SESSI
 fi
 
 # Only prompt once per session — check marker file
-MARKER="/tmp/claude-learnings-${SESSION_ID}"
+MARKER="${TMPDIR:-/tmp}/claude-memory-capture-${SESSION_ID}"
 if [[ -f "$MARKER" ]]; then
   exit 0
 fi
@@ -41,8 +41,8 @@ touch "$MARKER"
 # Block and ask Claude to reflect on learnings
 jq -n '{
   "decision": "block",
-  "reason": "Reflect on the session. If non-obvious learnings exist (debugging discoveries, gotchas, architectural decisions, unexpected behavior), use the capture-learnings skill. If none, say so briefly and stop.",
-  "systemMessage": "Session learnings check triggered (session had significant activity)."
+  "reason": "Reflect on the session. If non-obvious learnings exist (debugging discoveries, gotchas, architectural decisions, unexpected behavior), use the memory plugin'"'"'s capture-learnings skill. If none, say so briefly and stop.",
+  "systemMessage": "Memory capture check triggered (session had significant activity)."
 }'
 
 exit 0

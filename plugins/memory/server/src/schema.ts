@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 
-const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 const MIGRATIONS: Record<number, string[]> = {
   1: [
@@ -88,21 +88,62 @@ const MIGRATIONS: Record<number, string[]> = {
     // (v4's ON DELETE CASCADE erases a deleted row's events) and gives sync tombstones.
     `ALTER TABLE memories ADD COLUMN merged_into TEXT`,
   ],
+
+  7: [
+    // v2: FTS5 external-content index replaces the Orama JSON file. Triggers keep it
+    // in sync INSIDE the writing transaction, so concurrent sessions can never
+    // observe (or clobber) a divergent index — the failure mode that lost entries
+    // when two sessions each rewrote search-index.json whole.
+    // The index mirrors ALL rows (external-content tables must stay 1:1 with the
+    // base table); lifecycle/merged filtering belongs in the search query's WHERE.
+    `CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+      content, tags, triggers,
+      content='memories', content_rowid='rowid',
+      tokenize='porter unicode61 remove_diacritics 2'
+    )`,
+    `INSERT INTO memories_fts(rowid, content, tags, triggers)
+       SELECT rowid, content, tags, triggers FROM memories`,
+    `CREATE TRIGGER IF NOT EXISTS memories_fts_ai AFTER INSERT ON memories BEGIN
+      INSERT INTO memories_fts(rowid, content, tags, triggers)
+      VALUES (new.rowid, new.content, new.tags, new.triggers);
+    END`,
+    `CREATE TRIGGER IF NOT EXISTS memories_fts_ad AFTER DELETE ON memories BEGIN
+      INSERT INTO memories_fts(memories_fts, rowid, content, tags, triggers)
+      VALUES ('delete', old.rowid, old.content, old.tags, old.triggers);
+    END`,
+    `CREATE TRIGGER IF NOT EXISTS memories_fts_au AFTER UPDATE OF content, tags, triggers ON memories BEGIN
+      INSERT INTO memories_fts(memories_fts, rowid, content, tags, triggers)
+      VALUES ('delete', old.rowid, old.content, old.tags, old.triggers);
+      INSERT INTO memories_fts(rowid, content, tags, triggers)
+      VALUES (new.rowid, new.content, new.tags, new.triggers);
+    END`,
+
+    // Undo v1's downvote hack: downvoting stamped valid_until with the exact ISO
+    // timestamp of the downvote event, permanently pinning a 0.3× freshness penalty
+    // that upvotes could never clear. The stamp equals the downvote event's
+    // created_at (same \`now\` variable in v1 vote()), so this reversal is precise —
+    // user-set expiry dates (date-only or unrelated timestamps) are untouched.
+    `UPDATE memories SET valid_until = NULL
+     WHERE valid_until IN (
+       SELECT e.created_at FROM memory_events e
+       WHERE e.memory_id = memories.id AND e.event_type = 'downvoted'
+     )`,
+  ],
 };
 
-export function initSchema(db: Database.Database): void {
-  // Check current version
-  let currentVersion = 0;
+export function getSchemaVersion(db: Database.Database): number {
   try {
     const row = db
       .prepare("SELECT value FROM schema_meta WHERE key = 'version'")
       .get() as { value: string } | undefined;
-    if (row) {
-      currentVersion = parseInt(row.value, 10);
-    }
+    return row ? parseInt(row.value, 10) : 0;
   } catch {
-    // Table doesn't exist yet — version 0
+    return 0; // schema_meta doesn't exist yet
   }
+}
+
+export function initSchema(db: Database.Database): void {
+  const currentVersion = getSchemaVersion(db);
 
   if (currentVersion >= SCHEMA_VERSION) return;
 

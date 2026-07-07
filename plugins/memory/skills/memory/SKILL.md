@@ -33,8 +33,12 @@ Do NOT use as a first resort. Check built-in memory first.
 
 Store entries that are:
 - **Cross-project relevant** — patterns, gotchas, insights that apply beyond one project
-- **Worth semantic search** — content that benefits from vector similarity matching
+- **Worth keyword search** — content a future session would find by searching technical terms
 - **Durable knowledge** — debug discoveries, architectural decisions, reusable facts
+
+**Write declarative facts, not imperatives.** "pgx v5 zero-fills on type
+mismatch" ✓ — "always check types before scanning" ✗. Imperatives get re-read
+as directives in later sessions and can override the user's actual request.
 
 ### Auto-Capture Tiers
 
@@ -59,6 +63,9 @@ Do NOT store:
 - Speculative or unverified conclusions
 - In-progress exploration state
 - Things that duplicate built-in MEMORY.md or CLAUDE.md instructions
+- **Environment-dependent failures** (missing binaries, "command not found") — capture the fix if there is one, never the failure
+- **Negative claims about tools** ("X is broken") — these harden into stale refusals cited long after the problem is fixed
+- **Transient errors that resolved** within the session
 
 ## Project Scoping
 
@@ -79,23 +86,35 @@ Use global for cross-project knowledge: infrastructure patterns, tool behaviors,
 Three MCP tools:
 
 ### memory_store
-Store a new knowledge entry. See "When to Use memory_store" above.
+Store a new knowledge entry. See "When to Use memory_store" above. If it
+reports a near-duplicate, update/upvote the existing entry instead of
+rephrasing; pass `allow_similar: true` only when genuinely distinct.
 
 ### memory_recall
-Semantic + keyword hybrid search. See "When to Use memory_recall" above.
+FTS5/BM25 keyword search (keywords beat prose queries). Results truncate at
+600 chars — use `memory_manage action:"get"` for full text, or `full: true`.
 
 ### memory_manage
 All other operations via the `action` parameter:
+- `get` — full content, metadata, and recent event history for one entry
 - `update` — edit content, category, tags, triggers of an existing entry
 - `delete` — remove an entry by ID
-- `upvote` / `downvote` — vote on entry quality (affects ranking)
+- `upvote` / `downvote` — vote on entry quality (affects ranking; repeated downvotes demote to stale/archived)
 - `list` — list entries with filters
-- `stats` — counts by project, category, source
-- `cleanup` — suggest low-value entries for deletion
+- `stats` — counts by project, category, source, lifecycle
 - `audit` — find expired, near-expiry, and low-confidence entries
-- `consolidate` — find groups of similar entries that could be merged
-- `sync` — git-based sync (push/pull/export/rebuild)
+- `consolidate` — find groups of similar entries that could be merged (Jaccard similarity)
+- `age` — lifecycle aging (also runs automatically at session end every ~7 days)
+- `merge` — absorb an entry into a winner (keeps a tombstone)
+- `sync` — git-based sync (push/pull/status/reindex)
 - `import` — import from a MEMORY.md file
+
+## Durability (automatic)
+
+Every mutation appends to `~/.claude-memory/journal.jsonl`; session end
+snapshots to `memories.jsonl`, commits, and pushes to the forgejo remote
+(debounced). If SessionStart reports a FAILED background push, run
+`memory_manage action:"sync" operation:"push"` to retry and see the error.
 
 ## Triggers
 

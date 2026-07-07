@@ -9,14 +9,12 @@ interface RecallOptions {
   min_score?: number;
 }
 
-export async function recallMemories(
-  opts: RecallOptions
-): Promise<RecallResult[]> {
+export function recallMemories(opts: RecallOptions): RecallResult[] {
   return recall({
     query: opts.query,
     project: opts.project,
     category: opts.category,
-    limit: opts.limit ?? 10,
+    limit: opts.limit ?? 5,
     min_score: opts.min_score,
   });
 }

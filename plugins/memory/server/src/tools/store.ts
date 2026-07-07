@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 import { v4 as uuid } from "uuid";
-import { getDb } from "../db.js";
-import { embed } from "../embeddings.js";
-import { findSimilar } from "../retrieval.js";
-import { indexMemory, saveSearchIndex } from "../search-index.js";
-import { getDetectedProject } from "../project-detect.js";
-import type { MemoryCategory, MemoryRow, MemorySource, StoreResult } from "../types.js";
+import { getDb, checkpoint } from "../db.js";
+import { findNearDuplicates } from "../similarity.js";
+import { getDetectedProject } from "../detect.js";
+import { scanThreat } from "../threat.js";
+import { appendJournal } from "../journal.js";
+import type { Memory, MemoryCategory, MemorySource, StoreResult } from "../types.js";
 
 const CATEGORY_KEYWORDS: Record<MemoryCategory, string[]> = {
   pattern: ["pattern", "convention", "always", "standard", "approach", "architecture"],
@@ -47,14 +47,25 @@ interface StoreOptions {
   confidence?: number;
   version_context?: string | null;
   valid_until?: string | null;
+  /** Force the write past the near-duplicate gate */
+  allow_similar?: boolean;
 }
 
 const MAX_CONTENT_LENGTH = 5000;
 
-export async function storeMemory(opts: StoreOptions): Promise<StoreResult> {
+export function storeMemory(opts: StoreOptions): StoreResult {
   if (opts.content.length > MAX_CONTENT_LENGTH) {
     throw new Error(
       `Memory content too long (${opts.content.length} chars, max ${MAX_CONTENT_LENGTH}). Summarize before storing.`
+    );
+  }
+
+  // Store-boundary threat gate: this content will be rendered into future
+  // sessions' context, so instruction-override/exfil-shaped text is rejected.
+  const threat = scanThreat(opts.content);
+  if (threat) {
+    throw new Error(
+      `Content rejected: matches threat pattern "${threat}". Memories are injected into future sessions — rephrase without instruction-like or exfiltration-shaped content.`
     );
   }
 
@@ -81,56 +92,78 @@ export async function storeMemory(opts: StoreOptions): Promise<StoreResult> {
     };
   }
 
-  // Generate embedding
-  const embedding = await embed(opts.content);
-
-  // Layer 2: Scope-aware semantic near-duplicate check
-  const similar = await findSimilar(embedding, 0.85, 1, project);
-
-  if (similar.length > 0) {
-    return {
-      id: similar[0].memory_id,
-      status: "near-duplicate",
-      existing_id: similar[0].memory_id,
-      similarity: similar[0].similarity,
-    };
+  // Layer 2: Lexical near-duplicate gate — top-5 FTS candidates judged by
+  // Jaccard/containment (v1's top-1 cosine at 0.85 let paraphrases pile up)
+  if (!opts.allow_similar) {
+    const dups = findNearDuplicates(db, opts.content, project);
+    if (dups.length > 0) {
+      return {
+        id: dups[0].id,
+        status: "near-duplicate",
+        existing_id: dups[0].id,
+        similarity: dups[0].similarity,
+        near_duplicates: dups,
+        project,
+      };
+    }
   }
 
-  // Store new memory
   const id = uuid();
   const now = new Date().toISOString();
   const category = opts.category ?? autoDetectCategory(opts.content);
   const source = opts.source ?? "manual";
   const confidence = opts.confidence ?? (source === "auto-captured" ? 0.7 : 1.0);
 
-  db.prepare(
-    `INSERT INTO memories (id, content, category, project, tags, triggers, source, source_detail, confidence, score, use_count, created_at, updated_at, content_hash, version_context, valid_until)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?)`
-  ).run(
+  const memory: Memory = {
     id,
-    opts.content,
+    content: opts.content,
     category,
     project,
-    JSON.stringify(opts.tags ?? []),
-    JSON.stringify(opts.triggers ?? []),
+    tags: opts.tags ?? [],
+    triggers: opts.triggers ?? [],
     source,
-    opts.source_detail ?? null,
+    source_detail: opts.source_detail ?? null,
     confidence,
-    now,
-    now,
-    contentHash,
-    opts.version_context ?? null,
-    opts.valid_until ?? null
-  );
+    score: 0,
+    use_count: 0,
+    created_at: now,
+    updated_at: now,
+    last_used_at: null,
+    version_context: opts.version_context ?? null,
+    valid_until: opts.valid_until ?? null,
+    content_hash: contentHash,
+    lifecycle_state: "active",
+    merged_into: null,
+  };
 
-  // Index in Orama
-  await indexMemory(id, opts.content, embedding, category, project ?? "");
-  await saveSearchIndex();
+  const tx = db.transaction(() => {
+    db.prepare(
+      `INSERT INTO memories (id, content, category, project, tags, triggers, source, source_detail, confidence, score, use_count, created_at, updated_at, content_hash, version_context, valid_until)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?)`
+    ).run(
+      id,
+      memory.content,
+      category,
+      project,
+      JSON.stringify(memory.tags),
+      JSON.stringify(memory.triggers),
+      source,
+      memory.source_detail,
+      confidence,
+      now,
+      now,
+      contentHash,
+      memory.version_context,
+      memory.valid_until
+    );
+    db.prepare(
+      "INSERT INTO memory_events(memory_id, event_type, created_at) VALUES (?, 'created', ?)"
+    ).run(id, now);
+  });
+  tx();
 
-  // Log event
-  db.prepare(
-    "INSERT INTO memory_events(memory_id, event_type, created_at) VALUES (?, 'created', ?)"
-  ).run(id, now);
+  appendJournal("create", { memory });
+  checkpoint();
 
   return { id, status: "created", project };
 }

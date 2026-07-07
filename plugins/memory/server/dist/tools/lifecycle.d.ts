@@ -40,12 +40,13 @@ export interface MergeResult {
 }
 /**
  * Consolidation effector: mark `id` as absorbed into `mergedInto`.
- * The loser becomes a tombstone (lifecycle_state='merged'): excluded from recall and
- * the search index, but its row + event history are KEPT — never hard-deleted. This is
- * what the consolidate workflow should call instead of delete (which, via the v4
- * ON DELETE CASCADE, would erase the loser's event history including the deletion event).
+ * The loser becomes a tombstone (lifecycle_state='merged'): excluded from recall
+ * (search queries filter merged rows), but its row + event history are KEPT —
+ * never hard-deleted. This is what the consolidate workflow should call instead
+ * of delete (which, via the v4 ON DELETE CASCADE, would erase the loser's event
+ * history including the deletion event).
  */
-export declare function mergeMemory(id: string, mergedInto: string): Promise<MergeResult | string>;
+export declare function mergeMemory(id: string, mergedInto: string): MergeResult | string;
 /**
  * Deterministic bookkeeping (SciEvolve principle: tools are effectors, the LLM is
  * judgment). appendLedger records provenance; the stamp drives the SessionStart nudge

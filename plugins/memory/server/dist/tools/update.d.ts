@@ -9,6 +9,6 @@ interface UpdateOptions {
     version_context?: string | null;
     valid_until?: string | null;
 }
-export declare function updateMemory(opts: UpdateOptions): Promise<Memory | null>;
+export declare function updateMemory(opts: UpdateOptions): Memory | null;
 export {};
 //# sourceMappingURL=update.d.ts.map

@@ -1,7 +1,7 @@
 import { appendFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { getDb, getDataDir } from "../db.js";
-import { removeFromIndex, saveSearchIndex } from "../search-index.js";
+import { getDb, getDataDir, checkpoint } from "../db.js";
+import { appendJournal } from "../journal.js";
 /**
  * Deterministic, reversible lifecycle aging — the curator's automatic pass.
  *
@@ -64,6 +64,11 @@ export function ageMemories(opts = {}) {
             stale_days: staleDays,
             archive_days: archiveDays,
         });
+        appendJournal("age", {
+            to_stale: toStale.map((r) => r.id),
+            to_archived: toArchive.map((r) => r.id),
+        });
+        checkpoint();
     }
     const expiredBefore = (v, ref) => v !== null && new Date(v).getTime() < ref;
     const reasonStale = (r) => expiredBefore(r.valid_until, Date.now())
@@ -80,12 +85,13 @@ export function ageMemories(opts = {}) {
 }
 /**
  * Consolidation effector: mark `id` as absorbed into `mergedInto`.
- * The loser becomes a tombstone (lifecycle_state='merged'): excluded from recall and
- * the search index, but its row + event history are KEPT — never hard-deleted. This is
- * what the consolidate workflow should call instead of delete (which, via the v4
- * ON DELETE CASCADE, would erase the loser's event history including the deletion event).
+ * The loser becomes a tombstone (lifecycle_state='merged'): excluded from recall
+ * (search queries filter merged rows), but its row + event history are KEPT —
+ * never hard-deleted. This is what the consolidate workflow should call instead
+ * of delete (which, via the v4 ON DELETE CASCADE, would erase the loser's event
+ * history including the deletion event).
  */
-export async function mergeMemory(id, mergedInto) {
+export function mergeMemory(id, mergedInto) {
     const db = getDb();
     const now = new Date().toISOString();
     if (id === mergedInto)
@@ -100,12 +106,14 @@ export async function mergeMemory(id, mergedInto) {
         return `Merge target ${mergedInto} not found`;
     if (winner.lifecycle_state === "merged")
         return `Merge target ${mergedInto} is itself merged — merge into its winner instead`;
-    db.prepare(`UPDATE memories SET lifecycle_state = 'merged', merged_into = ?, updated_at = ? WHERE id = ?`).run(mergedInto, now, id);
-    db.prepare(`INSERT INTO memory_events(memory_id, event_type, detail, created_at) VALUES (?, 'merged', ?, ?)`).run(id, `merged into ${mergedInto}`, now);
-    // Drop the tombstone from the search index so it never surfaces in recall.
-    await removeFromIndex(id);
-    await saveSearchIndex();
+    const tx = db.transaction(() => {
+        db.prepare(`UPDATE memories SET lifecycle_state = 'merged', merged_into = ?, updated_at = ? WHERE id = ?`).run(mergedInto, now, id);
+        db.prepare(`INSERT INTO memory_events(memory_id, event_type, detail, created_at) VALUES (?, 'merged', ?, ?)`).run(id, `merged into ${mergedInto}`, now);
+    });
+    tx();
     appendLedger({ action: "merge", id, merged_into: mergedInto });
+    appendJournal("merge", { id, merged_into: mergedInto });
+    checkpoint();
     return { id, merged_into: mergedInto };
 }
 /**

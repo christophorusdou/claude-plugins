@@ -34,11 +34,11 @@ export interface MemoryEvent {
     detail: string | null;
     created_at: string;
 }
-export type MemoryEventType = "created" | "updated" | "upvoted" | "downvoted" | "retrieved" | "deleted" | "aged" | "merged";
+export type MemoryEventType = "created" | "updated" | "upvoted" | "downvoted" | "retrieved" | "injected" | "deleted" | "aged" | "merged";
 export interface RecallResult {
     memory: Memory;
-    vector_similarity: number;
-    fts_score: number;
+    /** Normalized BM25 relevance (0–1 within the candidate set) */
+    relevance: number;
     final_score: number;
     trigger_matched: boolean;
 }
@@ -47,6 +47,12 @@ export interface StoreResult {
     status: "created" | "duplicate" | "near-duplicate";
     existing_id?: string;
     similarity?: number;
+    /** All near-duplicate candidates found (top-5 gate), most similar first */
+    near_duplicates?: Array<{
+        id: string;
+        similarity: number;
+        content: string;
+    }>;
     project?: string | null;
 }
 export interface MemoryStats {
