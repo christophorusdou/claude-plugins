@@ -8,13 +8,18 @@ Personal Claude Code plugin marketplace — custom plugins for development workf
 |--------|-------------|------------|
 | project-awareness | Auto-generates project catalog on session start | hooks |
 | homelab-context | Homelab infrastructure knowledge and deployment | skills, commands, agents, hooks |
-| memory | Cross-project semantic memory with search | MCP server, skills, commands, hooks |
+| memory | Cross-project knowledge archive (SQLite+FTS5) with session capture, curation, auto git sync | MCP server, skills, commands, hooks |
 | agent-teams | Automated agent team assembly and coordination | skills, commands |
 | ai-efficiency-advisor | AI usage analysis, feature discovery, improvement tracking | agents, skills, commands, hooks |
 | career-evolution | Career research, trend tracking, decision support | skills, commands, hooks |
 | bedrock-oidc-auth | AWS Bedrock authentication via OIDC SSO | skills |
 | blog-publisher | Blog post creation and deployment | skills, commands |
-| session-learnings | Capture non-obvious session insights | skills, commands, hooks |
+| work-assistant-claude | Work intelligence: briefings, standup, meeting prep, Jira sync, patterns | skills, commands, agents, hooks |
+| second-brain | Personal capture→process→vault notebook | skills, commands, hooks |
+
+(session-learnings was absorbed into the memory plugin in v2.0.0 — its Stop-hook
+capture pipeline now lives at `plugins/memory/hooks/stop-capture.sh` +
+`plugins/memory/skills/capture-learnings/`.)
 
 ## Plugin Structure
 
