@@ -13,9 +13,11 @@
  */
 export declare function detectProject(cwd: string): string | null;
 /**
- * Project for THIS server process, from its launch cwd. Claude Code starts one
- * plugin MCP server per session with the session's cwd, so caching per-process
- * is correct; the per-call form above is for hooks.
+ * Project for THIS server process. start.sh exports MEMORY_SESSION_CWD (the
+ * cwd Claude Code launched it with) before cd-ing into the server dir, so we
+ * must prefer it over process.cwd() — which is always the plugin's server dir
+ * and made v1 scope every auto-detected memory to "memory-server". That name
+ * is kept as a hard guard: it can only come from the plugin's own package.json.
  */
 export declare function getDetectedProject(): string | null;
 //# sourceMappingURL=detect.d.ts.map

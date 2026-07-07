@@ -6,6 +6,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVER_DIR="${SCRIPT_DIR}/server"
 
+# Preserve the cwd Claude Code launched us with BEFORE cd-ing into the server
+# dir — project auto-detection must see the session's directory, not the
+# plugin's (the cd below is why v1 scoped every memory to "memory-server").
+export MEMORY_SESSION_CWD="${MEMORY_SESSION_CWD:-$PWD}"
+
 cd "$SERVER_DIR"
 
 needs_install=0
